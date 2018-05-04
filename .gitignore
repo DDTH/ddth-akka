@@ -1,0 +1,10 @@
+/.settings
+/target
+/.classpath
+/.project
+/release.properties
+*.md.html
+*.iml
+.DS_Store
+/.idea
+
