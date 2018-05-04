@@ -6,11 +6,11 @@ Artifact: `com.github.ddth:ddth-akka-core:${ddth-akka-version}`.
 
 Class: `com.github.ddth.akka.AkkaUtils`.
 
-### `public static akka.actor.ActorSystem createActorSystem(String name)`
+**`public static akka.actor.ActorSystem createActorSystem(String name)`**
 
 Create an `ActorSystem` with default configurations. The "default configurations" is loaded from `com/github/ddth/akka/default-akka-standalone.conf`.
 
-### `public static akka.actor.ActorSystem createActorSystem(String name, com.typesafe.config.Config config)`
+**`public static akka.actor.ActorSystem createActorSystem(String name, com.typesafe.config.Config config)`**
 
 Create an `ActorSystem` with specified configurations.
 
