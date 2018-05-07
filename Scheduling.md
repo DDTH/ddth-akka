@@ -51,7 +51,7 @@ To ensure consistency and load-balance work amongst nodes, `tick message` broadc
 Two external components are needed in multi-node mode:
 
 - [Distributed-lock backend](https://github.com/DDTH/ddth-dlock/): to ensure at one given time, only one node is allowed to generate.
-- [Queue backend](https://github.com/DDTH/ddth-dlock/): to distribute work to workers on random node.
+- [Queue backend](https://github.com/DDTH/ddth-queue/): to distribute work to workers on random node.
 
 
 ### Implementation Flow for Developers
