@@ -1,0 +1,146 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>com.github.ddth</groupId>
+		<artifactId>ddth-parent</artifactId>
+		<version>6</version>
+	</parent>
+
+	<!-- <groupId>com.github.ddth</groupId> -->
+	<artifactId>ddth-akka</artifactId>
+	<version>0.1.0-SNAPSHOT</version>
+	<packaging>pom</packaging>
+
+	<name>ddth-akka</name>
+	<description>DDTH's Common Helpers and Utilities for Akka</description>
+	<url>https://github.com/DDTH/ddth-akka</url>
+
+	<modules>
+		<module>ddth-akka-core</module>
+	</modules>
+
+	<licenses>
+		<license>
+			<name>The MIT License (MIT)</name>
+			<url>http://opensource.org/licenses/MIT</url>
+			<distribution>repo</distribution>
+		</license>
+	</licenses>
+
+	<scm>
+		<url>git@github.com:DDTH/ddth-akka</url>
+		<connection>scm:git:git@github.com:DDTH/ddth-akka</connection>
+		<developerConnection>scm:git:git@github.com:DDTH/ddth-akka</developerConnection>
+	</scm>
+	<developers>
+		<developer>
+			<id>btnguyen2k</id>
+			<name>Thanh Ba Nguyen</name>
+			<email>btnguyen2k@gmail.com</email>
+		</developer>
+	</developers>
+
+	<properties>
+		<skipTests>true</skipTests>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+		<version.akka>2.5.12</version.akka>
+		<version.scala>2.12</version.scala>
+		<version.ddth_commons>0.9.1.2</version.ddth_commons>
+		<version.ddth_dlock>0.1.1.2</version.ddth_dlock>
+		<version.ddth_queue>0.6.2.6</version.ddth_queue>
+	</properties>
+
+	<repositories>
+		<repository>
+			<id>sonatype-org</id>
+			<name>Sonatype Releases</name>
+			<url>http://oss.sonatype.org/content/repositories/releases/</url>
+		</repository>
+	</repositories>
+
+	<dependencies>
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>4.12</version>
+			<scope>test</scope>
+			<!-- <exclusions> <exclusion> <groupId>org.slf4j</groupId> <artifactId>slf4j-simple</artifactId> 
+				</exclusion> </exclusions> -->
+		</dependency>
+		<dependency>
+			<groupId>com.github.ddth</groupId>
+			<artifactId>ddth-dlock-redis</artifactId>
+			<version>${version.ddth_dlock}</version>
+			<scope>test</scope>
+			<type>pom</type>
+		</dependency>
+		<dependency>
+			<groupId>com.github.ddth</groupId>
+			<artifactId>ddth-queue-redis</artifactId>
+			<version>${version.ddth_queue}</version>
+			<scope>test</scope>
+			<type>pom</type>
+		</dependency>
+
+		<dependency>
+			<groupId>com.github.ddth</groupId>
+			<artifactId>ddth-commons-core</artifactId>
+			<version>${version.ddth_commons}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.github.ddth</groupId>
+			<artifactId>ddth-dlock-core</artifactId>
+			<version>${version.ddth_dlock}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.github.ddth</groupId>
+			<artifactId>ddth-queue-core</artifactId>
+			<version>${version.ddth_queue}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-lang3</artifactId>
+			<version>3.7</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.typesafe.akka</groupId>
+			<artifactId>akka-actor_${version.scala}</artifactId>
+			<version>${version.akka}</version>
+			<optional>true</optional>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-javadoc-plugin</artifactId>
+				<version>3.0.0</version>
+				<configuration>
+					<additionalparam>-Xdoclint:none</additionalparam>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<version>2.21.0</version>
+				<configuration>
+					<skipTests>${skipTests}</skipTests>
+					<forkCount>4</forkCount>
+					<reuseForks>true</reuseForks>
+					<parallel>suites</parallel>
+					<useUnlimitedThreads>true</useUnlimitedThreads>
+
+					<systemPropertyVariables>
+						<!-- <log4j.configuration>file:${basedir}/../etc/log4j.xml</log4j.configuration> -->
+					</systemPropertyVariables>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+</project>
