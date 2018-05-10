@@ -10,6 +10,7 @@ import com.github.ddth.akka.scheduling.annotation.Scheduling;
 import com.github.ddth.akka.scheduling.tickfanout.MultiNodeQueueBasedTickFanOutActor;
 import com.github.ddth.commons.redis.JedisConnector;
 import com.github.ddth.commons.utils.DateFormatUtils;
+import com.github.ddth.dlock.IDLock;
 import com.github.ddth.dlock.impl.redis.RedisDLockFactory;
 import com.github.ddth.queue.IQueue;
 import com.github.ddth.queue.QueueSpec;
@@ -72,14 +73,17 @@ public class QndMultiNodeTickFanOut {
                         IQueue<?, byte[]> queue = queueFactory.getQueue(new QueueSpec("demo"));
                         System.out.println("Queue: " + queue);
 
+                        IDLock dlock = dlockFactory.createLock("demo");
+                        System.out.println("DLock: " + dlock);
+
                         ActorRef tickFanOut = MultiNodeQueueBasedTickFanOutActor
-                                .newInstance(actorSystem, dlockFactory.createLock("demo"), queue);
+                                .newInstance(actorSystem, dlock, queue, 1000, 5000);
                         System.out.println(tickFanOut);
 
                         Thread.sleep(60000);
 
                         actorSystem.stop(tickFanOut);
-                        
+
                         Thread.sleep(1000);
                     } finally {
                         actorSystem.terminate().value();

@@ -30,9 +30,40 @@ import scala.concurrent.duration.Duration;
  */
 public class MultiNodeQueueBasedTickFanOutActor extends TickFanOutActor {
 
+    /**
+     * Default sleep time between queue poll in milliseconds.
+     */
+    public final static long DEFAULT_QUEUE_POLL_SLEEP_MS = 1000;
+
+    /**
+     * Default d-lock time in milliseconds.
+     */
+    public final static long DEFAULT_DLOCK_TIME_MS = 5000;
+
     private final Logger LOGGER = LoggerFactory.getLogger(MultiNodeQueueBasedTickFanOutActor.class);
     public final static String ACTOR_NAME = AkkaUtils
             .shortenClassName(MultiNodeQueueBasedTickFanOutActor.class);
+
+    /**
+     * Helper method to create an instance of
+     * {@link MultiNodeQueueBasedTickFanOutActor}.
+     * 
+     * @param actorSystem
+     * @param dlock
+     * @param queue
+     * @param queuePollSleepMs
+     *            sleep time between queue poll in milliseconds.
+     * @param dlockTimeMs
+     *            d-lock time in milliseconds.
+     * @return
+     * @since 0.1.0.1
+     */
+    public static ActorRef newInstance(ActorSystem actorSystem, IDLock dlock,
+            IQueue<?, byte[]> queue, long queuePollSleepMs, long dlockTimeMs) {
+        Props props = Props.create(MultiNodeQueueBasedTickFanOutActor.class, dlock, queue,
+                queuePollSleepMs, dlockTimeMs);
+        return actorSystem.actorOf(props, ACTOR_NAME);
+    }
 
     /**
      * Helper method to create an instance of
@@ -45,7 +76,28 @@ public class MultiNodeQueueBasedTickFanOutActor extends TickFanOutActor {
      */
     public static ActorRef newInstance(ActorSystem actorSystem, IDLock dlock,
             IQueue<?, byte[]> queue) {
-        Props props = Props.create(MultiNodeQueueBasedTickFanOutActor.class, dlock, queue);
+        return newInstance(actorSystem, dlock, queue, DEFAULT_QUEUE_POLL_SLEEP_MS,
+                DEFAULT_DLOCK_TIME_MS);
+    }
+
+    /**
+     * Helper method to create an instance of
+     * {@link MultiNodeQueueBasedTickFanOutActor}.
+     * 
+     * @param actorSystem
+     * @param dlockFactory
+     * @param queue
+     * @param queuePollSleepMs
+     *            sleep time between queue poll in milliseconds.
+     * @param dlockTimeMs
+     *            d-lock time in milliseconds.
+     * @return
+     * @since 0.1.0.1
+     */
+    public static ActorRef newInstance(ActorSystem actorSystem, IDLockFactory dlockFactory,
+            IQueue<?, byte[]> queue, long queuePollSleepMs, long dlockTimeMs) {
+        Props props = Props.create(MultiNodeQueueBasedTickFanOutActor.class, dlockFactory, queue,
+                queuePollSleepMs, dlockTimeMs);
         return actorSystem.actorOf(props, ACTOR_NAME);
     }
 
@@ -60,8 +112,8 @@ public class MultiNodeQueueBasedTickFanOutActor extends TickFanOutActor {
      */
     public static ActorRef newInstance(ActorSystem actorSystem, IDLockFactory dlockFactory,
             IQueue<?, byte[]> queue) {
-        Props props = Props.create(MultiNodeQueueBasedTickFanOutActor.class, dlockFactory, queue);
-        return actorSystem.actorOf(props, ACTOR_NAME);
+        return newInstance(actorSystem, dlockFactory, queue, DEFAULT_QUEUE_POLL_SLEEP_MS,
+                DEFAULT_DLOCK_TIME_MS);
     }
 
     /**
@@ -71,21 +123,50 @@ public class MultiNodeQueueBasedTickFanOutActor extends TickFanOutActor {
     protected final static class OnQueueTick {
     }
 
+    private final long queuePollSleepMs;
+    private final long dlockTimeMs;
     private final IDLock dlock;
     private final String clientId;
     private final IQueue<Object, byte[]> queue;
 
-    public MultiNodeQueueBasedTickFanOutActor(IDLock dlock, IQueue<Object, byte[]> queue) {
+    /**
+     * 
+     * @param dlock
+     * @param queue
+     * @param queuePollSleepMs
+     * @param dlockTimeMs
+     * @since 0.1.0.1
+     */
+    public MultiNodeQueueBasedTickFanOutActor(IDLock dlock, IQueue<Object, byte[]> queue,
+            long queuePollSleepMs, long dlockTimeMs) {
+        this.queuePollSleepMs = queuePollSleepMs;
+        this.dlockTimeMs = dlockTimeMs;
         this.dlock = dlock;
-        this.queue = queue;
         this.clientId = AkkaUtils.nextId();
+        this.queue = queue;
+    }
+
+    public MultiNodeQueueBasedTickFanOutActor(IDLock dlock, IQueue<Object, byte[]> queue) {
+        this(dlock, queue, DEFAULT_QUEUE_POLL_SLEEP_MS, DEFAULT_DLOCK_TIME_MS);
+    }
+
+    /**
+     * 
+     * @param dlockFactory
+     * @param queue
+     * @param queuePollSleepMs
+     * @param dlockTimeMs
+     * @since 0.1.0.1
+     */
+    public MultiNodeQueueBasedTickFanOutActor(IDLockFactory dlockFactory,
+            IQueue<Object, byte[]> queue, long queuePollSleepMs, long dlockTimeMs) {
+        this(dlockFactory.createLock(ACTOR_NAME), queue, queuePollSleepMs, dlockTimeMs);
     }
 
     public MultiNodeQueueBasedTickFanOutActor(IDLockFactory dlockFactory,
             IQueue<Object, byte[]> queue) {
-        this.dlock = dlockFactory.createLock(ACTOR_NAME);
-        this.queue = queue;
-        this.clientId = AkkaUtils.nextId();
+        this(dlockFactory.createLock(ACTOR_NAME), queue, DEFAULT_QUEUE_POLL_SLEEP_MS,
+                DEFAULT_DLOCK_TIME_MS);
     }
 
     /**
@@ -94,8 +175,8 @@ public class MultiNodeQueueBasedTickFanOutActor extends TickFanOutActor {
     @Override
     public void preStart() throws Exception {
         super.preStart();
-        getTimers().startPeriodicTimer(this.getClass().getSimpleName() + "-queue",
-                new OnQueueTick(), Duration.create(1, TimeUnit.MILLISECONDS));
+        getTimers().startPeriodicTimer(this.getClass().getName() + "-queue", new OnQueueTick(),
+                Duration.create(queuePollSleepMs, TimeUnit.MILLISECONDS));
     }
 
     /**
@@ -104,7 +185,7 @@ public class MultiNodeQueueBasedTickFanOutActor extends TickFanOutActor {
     @Override
     public void postStop() throws Exception {
         try {
-            getTimers().cancel(this.getClass().getSimpleName() + "-queue");
+            getTimers().cancel(this.getClass().getName() + "-queue");
         } catch (Exception e) {
             LOGGER.warn(e.getMessage(), e);
         }
@@ -153,7 +234,7 @@ public class MultiNodeQueueBasedTickFanOutActor extends TickFanOutActor {
      */
     @Override
     protected boolean fanOut(TickMessage tickMessage) {
-        if (dlock.lock(clientId, 5000) == LockResult.SUCCESSFUL) {
+        if (dlock.lock(clientId, dlockTimeMs) == LockResult.SUCCESSFUL) {
             IQueueMessage<Object, byte[]> queueMsg = toQueueMessage(tickMessage);
             if (queueMsg != null) {
                 boolean status = queue.queue(queueMsg);
