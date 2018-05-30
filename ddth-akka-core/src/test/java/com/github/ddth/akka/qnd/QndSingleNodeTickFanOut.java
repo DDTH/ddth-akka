@@ -19,7 +19,7 @@ public class QndSingleNodeTickFanOut {
     @Scheduling("*/5 * *")
     private static class MyWorker1 extends BaseWorker {
         @Override
-        protected void doJob(TickMessage tick) throws Exception {
+        protected void doJob(String lockId, TickMessage tick) throws Exception {
             Date now = new Date();
             System.out.println("{" + self().path() + "}: " + tick.getId() + " / "
                     + DateFormatUtils.toString(now, DateFormatUtils.DF_ISO8601) + " / "
@@ -35,7 +35,7 @@ public class QndSingleNodeTickFanOut {
         }
 
         @Override
-        protected void doJob(TickMessage tick) throws Exception {
+        protected void doJob(String lockId, TickMessage tick) throws Exception {
             Date now = new Date();
             System.out.println("{" + self().path() + "}: " + tick.getId() + " / "
                     + DateFormatUtils.toString(now, DateFormatUtils.DF_ISO8601) + " / "

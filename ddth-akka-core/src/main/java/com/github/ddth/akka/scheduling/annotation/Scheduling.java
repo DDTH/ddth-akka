@@ -6,6 +6,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 import com.github.ddth.akka.scheduling.CronFormat;
+import com.github.ddth.akka.scheduling.WorkerCoordinationPolicy;
 
 /**
  * Annotation to define worker's scheduling in {@code CronFormat}.
@@ -22,4 +23,20 @@ public @interface Scheduling {
      * @return
      */
     String value();
+
+    /**
+     * If {@code true}, the first "tick" will fire as soon as the actor starts,
+     * ignoring tick-matching check.
+     * 
+     * @return
+     * @since 0.1.1
+     */
+    boolean runFirstTimeRegardlessScheduling() default false;
+
+    /**
+     * 
+     * @return
+     * @since 0.1.1
+     */
+    WorkerCoordinationPolicy getWorkerCoordinationPolicy() default WorkerCoordinationPolicy.TAKE_ALL_TASKS;
 }

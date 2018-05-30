@@ -1,5 +1,16 @@
 # ddth-akka release notes
 
+## 0.1.1 - 2018-05-30
+
+- Removed `MultiNodeQueueBasedTickFanOutActor`, replaced with `MultiNodePubSubBasedTickFanOutActor`:
+  - At one specific time, only one `MultiNodePubSubBasedTickFanOutActor` creates and publishes tick-message.
+    But the tick-message is received by all workers on all nodes. It's up to the worker to decide the coordination.
+- `BaseWorker` and `Scheduling` rework:
+  - New enum class `WorkerCoordinationPolicy`
+  - Migrate work flow from queue-based to pub/sub-based.
+- Update dependency libs.
+
+
 ## 0.1.0.1 - 2018-05-07
 
 - Upgrade `ddth-commons` to `v0.9.1.3`.

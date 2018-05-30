@@ -60,6 +60,10 @@ public class BaseActor extends UntypedAbstractActor {
 
     /**
      * Message channels that the actor are subscribed to.
+     * 
+     * <p>
+     * Sub-class overrides this method to supply its own channel list.
+     * </p>
      *
      * @return
      */
@@ -83,6 +87,7 @@ public class BaseActor extends UntypedAbstractActor {
                 LOGGER.warn(e.getMessage());
                 exceptionLoggedGetECE.put(name, Boolean.TRUE);
             }
+            // return the default dispatcher
             return getActorSystem().dispatcher();
         }
     }
