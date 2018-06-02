@@ -304,6 +304,23 @@ public abstract class BaseWorker extends BaseActor {
                 "This method is deprecated, use method getWorkerCoordinationPolicy() instead.");
     }
 
+    /**
+     * Log a message explaining that the worker receives a task but is unable to
+     * execute it because the work is is busy.
+     * 
+     * @param tick
+     * @param isGlobal
+     * @since 0.1.1.2
+     */
+    protected void logBusy(TickMessage tick, boolean isGlobal) {
+        if (isGlobal) {
+            LOGGER.warn("{" + getActorPath()
+                    + "} Received TICK message, but another instance is taking the task. " + tick);
+        } else {
+            LOGGER.warn("{" + getActorPath() + "} Received TICK message, but I am busy! " + tick);
+        }
+    }
+
     private Lock localLock = new ReentrantLock(true);
 
     /**
@@ -324,7 +341,7 @@ public abstract class BaseWorker extends BaseActor {
                 localLock.unlock();
             }
         } else {
-            LOGGER.warn("{" + getActorPath() + "} Received TICK message, but I am busy! " + tick);
+            logBusy(tick, false);
         }
     }
 
@@ -371,8 +388,7 @@ public abstract class BaseWorker extends BaseActor {
                         getExecutionContextExecutor(AkkaUtils.AKKA_DISPATCHER_WORKERS));
             }
         } else {
-            LOGGER.warn("{" + getActorPath()
-                    + "} Received TICK message, but another instance is taking the task. " + tick);
+            logBusy(tick, true);
         }
     }
 
@@ -398,8 +414,6 @@ public abstract class BaseWorker extends BaseActor {
     protected void onTick(TickMessage tick) {
         if (isTickMatched(tick) || tick instanceof FirstTimeTickMessage) {
             getExecutionContextExecutor(AkkaUtils.AKKA_DISPATCHER_WORKERS).execute(() -> {
-                setLastTick(tick);
-
                 WorkerCoordinationPolicy wcp = getWorkerCoordinationPolicy();
                 switch (wcp) {
                 case LOCAL_SINGLETON:
@@ -412,9 +426,9 @@ public abstract class BaseWorker extends BaseActor {
                     doJobTakeAllTasks(tick);
                     break;
                 default:
-                    throw new IllegalArgumentException(
-                            "Received unrecognized worker-coordinator-policy value: " + wcp);
+                    LOGGER.error("Received unrecognized worker-coordinator-policy value: " + wcp);
                 }
+                setLastTick(tick);
             });
         }
     }

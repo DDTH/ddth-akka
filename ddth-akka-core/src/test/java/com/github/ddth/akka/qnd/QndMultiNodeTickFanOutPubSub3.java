@@ -2,6 +2,7 @@ package com.github.ddth.akka.qnd;
 
 import java.util.Date;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -13,7 +14,6 @@ import com.github.ddth.akka.scheduling.TickMessage;
 import com.github.ddth.akka.scheduling.WorkerCoordinationPolicy;
 import com.github.ddth.akka.scheduling.annotation.Scheduling;
 import com.github.ddth.akka.scheduling.tickfanout.MultiNodePubSubBasedTickFanOutActor;
-import com.github.ddth.commons.utils.DateFormatUtils;
 import com.github.ddth.dlock.IDLock;
 import com.github.ddth.dlock.impl.redis.RedisDLockFactory;
 import com.github.ddth.pubsub.impl.universal.idint.UniversalRedisPubSubHub;
@@ -42,17 +42,34 @@ public class QndMultiNodeTickFanOutPubSub3 {
             super(dlock, dlockTimeMs);
         }
 
+        private AtomicLong COUNTER_TASK = new AtomicLong(0), COUNTER_BUSY = new AtomicLong(0);
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        protected void logBusy(TickMessage tick, boolean isGlobal) {
+            COUNTER_BUSY.incrementAndGet();
+        }
+
         @Override
         protected void doJob(String dlockId, TickMessage tick) throws InterruptedException {
             Date now = new Date();
             try {
-                LOGGER.info("{" + self().path() + "}: " + tick.getId() + " / "
-                        + DateFormatUtils.toString(now, DateFormatUtils.DF_ISO8601) + " / "
-                        + DateFormatUtils.toString(tick.getTimestamp(), DateFormatUtils.DF_ISO8601)
-                        + " / " + (now.getTime() - tick.getTimestamp().getTime()));
-
-                int sleepMs = 2400 + RAND.nextInt(1000);
-                Thread.sleep(sleepMs);
+                COUNTER_TASK.incrementAndGet();
+                // LOGGER.info("{" + self().path() + "}: " + tick.getId() + " /
+                // "
+                // + DateFormatUtils.toString(now, DateFormatUtils.DF_ISO8601) +
+                // " / "
+                // + DateFormatUtils.toString(tick.getTimestamp(),
+                // DateFormatUtils.DF_ISO8601)
+                // + " / " + (now.getTime() - tick.getTimestamp().getTime()));
+                // int sleepMs = 1400 + RAND.nextInt(1000);
+                // Thread.sleep(sleepMs);
+                long numTask = COUNTER_TASK.get();
+                long numBusy = COUNTER_BUSY.get();
+                LOGGER.info("\t{" + self().path() + "} " + numTask + " / " + numBusy + " / "
+                        + (numTask * 100.0 / (numTask + numBusy)));
             } finally {
                 if (!StringUtils.isBlank(dlockId)
                         && System.currentTimeMillis() - now.getTime() > 1000) {
@@ -77,13 +94,12 @@ public class QndMultiNodeTickFanOutPubSub3 {
                 try {
                     System.out.println("Actor system: " + actorSystem);
 
-                    IDLock dlock1 = dlockFactory.createLock("worker");
-                    System.out.println("Actor: " + actorSystem.actorOf(
-                            Props.create(GlobalSingletonWorker.class, dlock1, 5000L), "worker1"));
-
-                    IDLock dlock2 = dlockFactory.createLock("worker");
-                    System.out.println("Actor: " + actorSystem.actorOf(
-                            Props.create(GlobalSingletonWorker.class, dlock2, 5000L), "worker2"));
+                    for (int i = 0; i < 4; i++) {
+                        IDLock dlock = dlockFactory.createLock("worker");
+                        System.out.println("Actor: " + actorSystem.actorOf(
+                                Props.create(GlobalSingletonWorker.class, dlock, 5000L),
+                                "worker" + i));
+                    }
 
                     IDLock dlock = dlockFactory.createLock("demo");
                     System.out.println("DLock: " + dlock);
@@ -92,7 +108,7 @@ public class QndMultiNodeTickFanOutPubSub3 {
                             .newInstance(actorSystem, dlock, pubSub, "pubSubChannel");
                     System.out.println(tickFanOut);
 
-                    Thread.sleep(60000);
+                    Thread.sleep(600000);
 
                     actorSystem.stop(tickFanOut);
 

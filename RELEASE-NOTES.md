@@ -1,6 +1,6 @@
 # ddth-akka release notes
 
-## 0.1.1.1 - 2018-06-02
+## 0.1.1.2 - 2018-06-02
 
 - Bug fixes & Enhancements.
 
