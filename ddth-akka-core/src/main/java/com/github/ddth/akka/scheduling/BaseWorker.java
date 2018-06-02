@@ -329,6 +329,16 @@ public abstract class BaseWorker extends BaseActor {
     }
 
     /**
+     * Generate a dlock-id. Must be unique globally.
+     * 
+     * @return
+     * @since 0.1.1.1
+     */
+    protected String generateDLockId() {
+        return AkkaUtils.nextId();
+    }
+
+    /**
      * Execute job, global singleton mode, called by
      * {@link #onTick(TickMessage)}.
      * 
@@ -341,7 +351,7 @@ public abstract class BaseWorker extends BaseActor {
      * @since 0.1.1
      */
     protected void doJobGlobalSingleton(TickMessage tick) {
-        String dlockId = AkkaUtils.nextId();
+        String dlockId = generateDLockId();
         if (lock(dlockId, getLockDuration())) {
             try {
                 doJob(dlockId, tick);

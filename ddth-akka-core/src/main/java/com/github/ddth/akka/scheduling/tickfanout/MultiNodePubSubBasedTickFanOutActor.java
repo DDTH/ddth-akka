@@ -1,5 +1,7 @@
 package com.github.ddth.akka.scheduling.tickfanout;
 
+import java.util.UUID;
+
 import org.apache.commons.codec.binary.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -90,7 +92,7 @@ public class MultiNodePubSubBasedTickFanOutActor extends TickFanOutActor {
 
     private final IDLock dlock;
     private final long dlockTimeMs;
-    private final String dlockClientId;
+    private final String dlockId;
 
     private final IPubSubHub<Object, byte[]> pubSubHub;
     private final String pubSubChannelName;
@@ -110,7 +112,7 @@ public class MultiNodePubSubBasedTickFanOutActor extends TickFanOutActor {
             IPubSubHub<Object, byte[]> pubSubHub, String pubSubChannelName) {
         this.dlock = dlock;
         this.dlockTimeMs = dlockTimeMs;
-        this.dlockClientId = AkkaUtils.nextId();
+        this.dlockId = UUID.randomUUID().toString();
         this.pubSubHub = pubSubHub;
         this.pubSubChannelName = pubSubChannelName;
     }
@@ -168,7 +170,7 @@ public class MultiNodePubSubBasedTickFanOutActor extends TickFanOutActor {
         }
 
         try {
-            dlock.unlock(dlockClientId);
+            dlock.unlock(dlockId);
         } catch (Exception e) {
             LOGGER.warn(e.getMessage(), e);
         }
@@ -222,7 +224,7 @@ public class MultiNodePubSubBasedTickFanOutActor extends TickFanOutActor {
      */
     @Override
     protected boolean fanOut(TickMessage tickMessage) {
-        if (dlock.lock(dlockClientId, dlockTimeMs) == LockResult.SUCCESSFUL) {
+        if (dlock.lock(dlockId, dlockTimeMs) == LockResult.SUCCESSFUL) {
             IMessage<Object, byte[]> msg = toPubSubMessage(tickMessage);
             if (msg != null) {
                 boolean status = pubSubHub.publish(pubSubChannelName, msg);

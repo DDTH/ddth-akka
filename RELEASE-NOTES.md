@@ -1,5 +1,10 @@
 # ddth-akka release notes
 
+## 0.1.1.1 - 2018-06-02
+
+- Bug fixes & Enhancements.
+
+
 ## 0.1.1 - 2018-05-30
 
 - Removed `MultiNodeQueueBasedTickFanOutActor`, replaced with `MultiNodePubSubBasedTickFanOutActor`:
