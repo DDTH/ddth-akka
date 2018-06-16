@@ -4,7 +4,6 @@ import java.util.Date;
 
 import com.github.ddth.akka.AkkaUtils;
 import com.github.ddth.akka.scheduling.BaseWorker;
-import com.github.ddth.akka.scheduling.CronFormat;
 import com.github.ddth.akka.scheduling.TickMessage;
 import com.github.ddth.akka.scheduling.annotation.Scheduling;
 import com.github.ddth.akka.scheduling.tickfanout.MultiNodePubSubBasedTickFanOutActor;
@@ -19,12 +18,8 @@ import akka.actor.Props;
 
 public class QndMultiNodeTickFanOutPubSub {
 
+    @Scheduling("*/3 * *")
     private static class MyWorker1 extends BaseWorker {
-        @Override
-        protected CronFormat getScheduling() {
-            return CronFormat.parse("*/3 * *");
-        }
-
         @Override
         protected void doJob(String lockId, TickMessage tick) throws Exception {
             Date now = new Date();

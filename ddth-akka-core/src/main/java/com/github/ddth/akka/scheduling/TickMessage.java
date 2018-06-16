@@ -31,14 +31,12 @@ public class TickMessage implements Serializable {
      * "Tick's" timestamp when the tick is fired.
      */
     public final Date timestamp;
-    private final String timestampStr;
 
     public final Map<String, Object> tags = new HashMap<>();
 
     public TickMessage() {
         id = AkkaUtils.nextId();
         timestamp = new Date();
-        timestampStr = DateFormatUtils.toString(timestamp, DateFormatUtils.DF_ISO8601);
     }
 
     public TickMessage(Map<String, Object> tags) {
@@ -51,7 +49,6 @@ public class TickMessage implements Serializable {
     public TickMessage(String id) {
         this.id = id;
         timestamp = new Date();
-        timestampStr = DateFormatUtils.toString(timestamp, DateFormatUtils.DF_ISO8601);
     }
 
     public TickMessage(String id, Map<String, Object> tags) {
@@ -69,6 +66,17 @@ public class TickMessage implements Serializable {
         return this.timestamp;
     }
 
+    /**
+     * Get tick's timestamp as string.
+     * 
+     * @param format
+     * @return
+     * @since 0.1.2
+     */
+    public String getTimestampStr(String format) {
+        return DateFormatUtils.toString(getTimestamp(), format);
+    }
+
     public TickMessage addTag(String name, Object value) {
         tags.put(name, value);
         return this;
@@ -80,7 +88,8 @@ public class TickMessage implements Serializable {
     @Override
     public String toString() {
         ToStringBuilder tsb = new ToStringBuilder(this, ToStringStyle.SHORT_PREFIX_STYLE);
-        tsb.append("id", id).append("timestamp", timestampStr).append("tags", tags);
+        tsb.append("id", id).append("timestamp", getTimestampStr(DateFormatUtils.DF_ISO8601))
+                .append("tags", tags);
         return tsb.toString();
     }
 

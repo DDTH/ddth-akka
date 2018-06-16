@@ -31,13 +31,17 @@ public class QndMultiNodeTickFanOutPubSub2 {
         System.setProperty("org.slf4j.simpleLogger.showShortLogName", "false");
     }
 
-    static Logger LOGGER = LoggerFactory.getLogger("QndMultiNodeTickFanOutPubSub2");
+    static Logger LOGGER = LoggerFactory.getLogger(QndMultiNodeTickFanOutPubSub2.class);
     static Random RAND = new Random(System.currentTimeMillis());
 
-    @Scheduling(value = "*/3 * *", getWorkerCoordinationPolicy = WorkerCoordinationPolicy.GLOBAL_SINGLETON)
+    @Scheduling(value = "*/3 * *", workerCoordinationPolicy = WorkerCoordinationPolicy.GLOBAL_SINGLETON)
     static class MyWorker1 extends BaseWorker {
         public MyWorker1(IDLock dlock) {
             super(dlock, 5000);
+        }
+
+        protected void logBusy(TickMessage tick, boolean isGlobal) {
+            // EMPTY
         }
 
         @Override
@@ -54,10 +58,14 @@ public class QndMultiNodeTickFanOutPubSub2 {
         }
     }
 
-    @Scheduling(value = "*/3 * *", getWorkerCoordinationPolicy = WorkerCoordinationPolicy.GLOBAL_SINGLETON)
+    @Scheduling(value = "*/3 * *", workerCoordinationPolicy = WorkerCoordinationPolicy.GLOBAL_SINGLETON)
     static class MyWorker2 extends BaseWorker {
         public MyWorker2(IDLock dlock) {
             super(dlock, 5000);
+        }
+
+        protected void logBusy(TickMessage tick, boolean isGlobal) {
+            // EMPTY
         }
 
         @Override

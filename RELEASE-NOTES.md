@@ -1,5 +1,13 @@
 # ddth-akka release notes
 
+## 0.1.2 - 2018-06-15
+
+- Upgrade to `ddth-dlobk:0.1.2`:
+  - `Scheduling`: more options to cope with `ddth-dlobk:0.1.2`.
+  - `BaseWorker`: now support lock "fairness".
+- Bug fixes & Enhancements.
+
+
 ## 0.1.1.2 - 2018-06-02
 
 - Bug fixes & Enhancements.

@@ -5,6 +5,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+import com.github.ddth.akka.scheduling.BaseWorker;
 import com.github.ddth.akka.scheduling.CronFormat;
 import com.github.ddth.akka.scheduling.WorkerCoordinationPolicy;
 
@@ -34,9 +35,25 @@ public @interface Scheduling {
     boolean runFirstTimeRegardlessScheduling() default false;
 
     /**
+     * Worker coordination policy.
      * 
      * @return
      * @since 0.1.1
      */
-    WorkerCoordinationPolicy getWorkerCoordinationPolicy() default WorkerCoordinationPolicy.TAKE_ALL_TASKS;
+    WorkerCoordinationPolicy workerCoordinationPolicy() default WorkerCoordinationPolicy.TAKE_ALL_TASKS;
+
+    /**
+     * Lock time (in milliseconds), used in multi-node mode.
+     * 
+     * @return
+     * @since 0.1.2
+     */
+    long lockTime() default BaseWorker.DEFAULT_DLOCK_TIME_MS;
+
+    /**
+     * Lock with fairness if possible, used in multi-node mode.
+     * 
+     * @return
+     */
+    boolean lockFairness() default true;
 }
