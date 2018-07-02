@@ -93,24 +93,16 @@ public class BaseActor extends UntypedAbstractActor {
     }
 
     /**
-     * Mark if this actor has been initialized.
-     */
-    protected boolean actorInited = false;
-
-    /**
      * Convenient method to perform initializing work.
      *
      * @throws Exception
      */
     protected void initActor() throws Exception {
-        if (!actorInited) {
-            // subscribe to message channels
-            Collection<Class<?>> msgChannels = channelSubscriptions();
-            if (msgChannels != null && msgChannels.size() > 0) {
-                msgChannels.forEach(
-                        (clazz) -> getContext().system().eventStream().subscribe(self(), clazz));
-            }
-            actorInited = true;
+        // subscribe to message channels
+        Collection<Class<?>> msgChannels = channelSubscriptions();
+        if (msgChannels != null && msgChannels.size() > 0) {
+            msgChannels.forEach(
+                    (clazz) -> getContext().system().eventStream().subscribe(self(), clazz));
         }
     }
 

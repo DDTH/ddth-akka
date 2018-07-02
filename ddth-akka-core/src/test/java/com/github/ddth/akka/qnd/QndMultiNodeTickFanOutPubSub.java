@@ -18,6 +18,14 @@ import akka.actor.Props;
 
 public class QndMultiNodeTickFanOutPubSub {
 
+    static {
+        System.setProperty("org.slf4j.simpleLogger.logFile", "System.out");
+        System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "debug");
+        System.setProperty("org.slf4j.simpleLogger.showThreadName", "false");
+        System.setProperty("org.slf4j.simpleLogger.showLogName", "false");
+        System.setProperty("org.slf4j.simpleLogger.showShortLogName", "false");
+    }
+
     @Scheduling("*/3 * *")
     private static class MyWorker1 extends BaseWorker {
         @Override

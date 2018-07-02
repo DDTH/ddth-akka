@@ -11,6 +11,14 @@ import akka.actor.UntypedAbstractActor;
 
 public class QndCreateActorSystem {
 
+    static {
+        System.setProperty("org.slf4j.simpleLogger.logFile", "System.out");
+        System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "debug");
+        System.setProperty("org.slf4j.simpleLogger.showThreadName", "false");
+        System.setProperty("org.slf4j.simpleLogger.showLogName", "false");
+        System.setProperty("org.slf4j.simpleLogger.showShortLogName", "false");
+    }
+
     static class MyActor extends UntypedAbstractActor {
 
         private long token;

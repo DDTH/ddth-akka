@@ -19,7 +19,7 @@ Third party libraries are distributed under their own licenses.
 
 ## Installation
 
-Latest release version: `0.1.2`. See [RELEASE-NOTES.md](RELEASE-NOTES.md).
+Latest release version: `0.1.3`. See [RELEASE-NOTES.md](RELEASE-NOTES.md).
 
 Maven dependency: if only a sub-set of `ddth-akka` functionality is used, choose the corresponding
 dependency artifact(s) to reduce the number of unused jar files.
@@ -30,7 +30,7 @@ dependency artifact(s) to reduce the number of unused jar files.
 <dependency>
     <groupId>com.github.ddth</groupId>
     <artifactId>ddth-akka-core</artifactId>
-    <version>0.1.2</version>
+    <version>0.1.3</version>
 </dependency>
 ```
 
@@ -40,6 +40,10 @@ dependency artifact(s) to reduce the number of unused jar files.
 ### AkkaUtils
 
 Some useful helper methods to work with [Akka](https://akka.io). See [AkkaUtils.md](AkkaUtils.md).
+
+### Clustering
+
+Easier to work  with [Akka clustering](https://doc.akka.io/docs/akka/2.5.4/java/index-network.html). See [Clustering.md](Clustering.md).
 
 
 ### Scheduling

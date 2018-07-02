@@ -1,4 +1,5 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
@@ -45,7 +46,7 @@
 		<skipTests>true</skipTests>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-		<version.akka>2.5.12</version.akka>
+		<version.akka>2.5.13</version.akka>
 		<version.scala>2.12</version.scala>
 		<version.ddth_commons>0.9.1.4</version.ddth_commons>
 		<version.ddth_dlock>0.1.2</version.ddth_dlock>
@@ -122,6 +123,30 @@
 			<version>${version.akka}</version>
 			<optional>true</optional>
 		</dependency>
+		<dependency>
+			<groupId>com.typesafe.akka</groupId>
+			<artifactId>akka-cluster_${version.scala}</artifactId>
+			<version>${version.akka}</version>
+			<optional>true</optional>
+		</dependency>
+		<dependency>
+			<groupId>com.typesafe.akka</groupId>
+			<artifactId>akka-distributed-data_${version.scala}</artifactId>
+			<version>${version.akka}</version>
+			<optional>true</optional>
+		</dependency>
+        <dependency>
+            <groupId>com.typesafe.akka</groupId>
+            <artifactId>akka-cluster-metrics_${version.scala}</artifactId>
+            <version>${version.akka}</version>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>com.typesafe.akka</groupId>
+            <artifactId>akka-cluster-tools_${version.scala}</artifactId>
+            <version>${version.akka}</version>
+            <optional>true</optional>
+        </dependency>
 	</dependencies>
 
 	<build>

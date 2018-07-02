@@ -1,30 +1,20 @@
-package com.github.ddth.akka.qnd;
+package com.github.ddth.akka.qnd.cluster;
 
 import java.util.Date;
 
-import com.github.ddth.akka.AkkaUtils;
+import com.github.ddth.akka.cluster.MasterActor;
+import com.github.ddth.akka.cluster.scheduling.ClusterTickFanOutActor;
 import com.github.ddth.akka.scheduling.BaseWorker;
-import com.github.ddth.akka.scheduling.CronFormat;
 import com.github.ddth.akka.scheduling.TickMessage;
+import com.github.ddth.akka.scheduling.WorkerCoordinationPolicy;
 import com.github.ddth.akka.scheduling.annotation.Scheduling;
-import com.github.ddth.akka.scheduling.tickfanout.SingleNodeTickFanOutActor;
 import com.github.ddth.commons.utils.DateFormatUtils;
 
-import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
-import akka.actor.Props;
 
-public class QndSingleNodeTickFanOut {
+public class QndClusterTickFanOutNonClusterConfig extends BaseQnd {
 
-    static {
-        System.setProperty("org.slf4j.simpleLogger.logFile", "System.out");
-        System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "debug");
-        System.setProperty("org.slf4j.simpleLogger.showThreadName", "false");
-        System.setProperty("org.slf4j.simpleLogger.showLogName", "false");
-        System.setProperty("org.slf4j.simpleLogger.showShortLogName", "false");
-    }
-
-    @Scheduling("*/5 * *")
+    @Scheduling(value = "*/5 * *", workerCoordinationPolicy = WorkerCoordinationPolicy.GLOBAL_SINGLETON)
     private static class MyWorker1 extends BaseWorker {
         @Override
         protected void doJob(String lockId, TickMessage tick) throws Exception {
@@ -36,12 +26,8 @@ public class QndSingleNodeTickFanOut {
         }
     }
 
+    @Scheduling(value = "*/7 * *", workerCoordinationPolicy = WorkerCoordinationPolicy.GLOBAL_SINGLETON)
     private static class MyWorker2 extends BaseWorker {
-        @Override
-        protected CronFormat getScheduling() {
-            return CronFormat.parse("*/7 * *");
-        }
-
         @Override
         protected void doJob(String lockId, TickMessage tick) throws Exception {
             Date now = new Date();
@@ -53,20 +39,11 @@ public class QndSingleNodeTickFanOut {
     }
 
     public static void main(String[] args) throws Exception {
-        ActorSystem actorSystem = AkkaUtils.createActorSystem("my-actor-system");
-        try {
-            System.out.println(actorSystem);
-
-            actorSystem.actorOf(Props.create(MyWorker1.class), "worker1");
-            actorSystem.actorOf(Props.create(MyWorker2.class), "worker2");
-
-            ActorRef tickFanOut = SingleNodeTickFanOutActor.newInstance(actorSystem);
-            System.out.println(tickFanOut);
-            Thread.sleep(60000);
-            actorSystem.stop(tickFanOut);
-        } finally {
-            actorSystem.terminate();
-        }
+        ActorSystem actorSystem = startActorSystem(
+                "com/github/ddth/akka/default-akka-standalone.conf", MasterActor.class,
+                MyWorker1.class, MyWorker2.class, ClusterTickFanOutActor.class);
+        Thread.sleep(30000);
+        actorSystem.terminate();
     }
 
 }
