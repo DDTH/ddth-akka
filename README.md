@@ -41,9 +41,10 @@ dependency artifact(s) to reduce the number of unused jar files.
 
 Some useful helper methods to work with [Akka](https://akka.io). See [AkkaUtils.md](AkkaUtils.md).
 
+
 ### Clustering
 
-Easier to work  with [Akka clustering](https://doc.akka.io/docs/akka/2.5.4/java/index-network.html). See [Clustering.md](Clustering.md).
+Easier to work with [Akka cluster](https://doc.akka.io/docs/akka/2.5/index-cluster.html). See [Clustering.md](Clustering.md).
 
 
 ### Scheduling

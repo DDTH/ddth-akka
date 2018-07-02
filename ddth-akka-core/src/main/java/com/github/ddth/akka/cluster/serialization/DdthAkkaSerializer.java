@@ -8,7 +8,7 @@ import akka.serialization.JSerializer;
  * Serializer to serialize "tick"-messages.
  * 
  * <p>
- * This can be used as an out-of-the-box serialize for actor system, too.
+ * This can be used as an out-of-the-box serializer for actor system, too.
  * </p>
  * 
  * @author Thanh Nguyen <btnguyen2k@gmail.com>

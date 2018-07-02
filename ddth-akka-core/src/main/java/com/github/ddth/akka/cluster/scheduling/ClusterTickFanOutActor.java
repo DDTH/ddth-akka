@@ -7,7 +7,6 @@ import com.github.ddth.akka.AkkaUtils;
 import com.github.ddth.akka.cluster.ClusterMemberUtils;
 import com.github.ddth.akka.scheduling.TickFanOutActor;
 import com.github.ddth.akka.scheduling.TickMessage;
-import com.github.ddth.akka.scheduling.tickfanout.SingleNodeTickFanOutActor;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
@@ -19,14 +18,15 @@ import akka.cluster.pubsub.DistributedPubSub;
 import akka.cluster.pubsub.DistributedPubSubMediator;
 
 /**
- * Cluster fan-out "tick" messages only if the current node is leader
+ * Tick-fan-out actor for Akka clustering mode.
  * 
  * @author Thanh Nguyen <btnguyen2k@gmail.com>
  * @since 0.1.3
  */
 public class ClusterTickFanOutActor extends TickFanOutActor {
 
-    public final static String ACTOR_NAME = AkkaUtils.shortenClassName(ClusterTickFanOutActor.class);
+    public final static String ACTOR_NAME = AkkaUtils
+            .shortenClassName(ClusterTickFanOutActor.class);
     public final static Props PROPS = Props.create(ClusterTickFanOutActor.class);
 
     /**

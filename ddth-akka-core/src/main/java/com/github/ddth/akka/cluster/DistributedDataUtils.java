@@ -19,7 +19,7 @@ import com.google.common.cache.CacheBuilder;
 import akka.cluster.ddata.ORMultiMap;
 
 /**
- * Utility class to manage cluster's distributed-data.
+ * Utility class to work with cluster's distributed-data.
  * 
  * <p>
  * Cluster's distributed data model: {@link ORMultiMap}.

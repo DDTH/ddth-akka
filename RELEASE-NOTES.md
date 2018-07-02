@@ -1,8 +1,11 @@
 # ddth-akka release notes
 
-## 0.1.3 - 2018-07-01
+## 0.1.3 - 2018-07-02
 
-
+- Add [Akka cluster](https://doc.akka.io/docs/akka/2.5/index-cluster.html) support, see [Clustering.md](Clustering.md).
+- `TickFanOutActor`:
+  - switch to Akka scheduling instead of `Actor timer`
+  - renew "clock" every 24h to cope with long-term scheduling
 
 
 ## 0.1.2 - 2018-06-15
