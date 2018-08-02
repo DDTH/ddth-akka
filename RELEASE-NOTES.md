@@ -1,5 +1,16 @@
 # ddth-akka release notes
 
+## 0.1.4 - 2018-08-02
+
+- New class `BaseMessage`: base class to implement other Akka messages.
+- `BaseActor`: message handlers can be invoked either asynchronously or synchronously.
+- `ClusterMemberUtils`: new methods `resetNodes` and `getNodes(String)`.
+- `MasterActor` & package `com.github.ddth.akka.cluster.messages`:
+  - Get cluster's state via messages
+  - Update cluster state when `MasterActor` initializes
+- Other bug fixes & enhancements.
+
+
 ## 0.1.3 - 2018-07-02
 
 - Add [Akka cluster](https://doc.akka.io/docs/akka/2.5/index-cluster.html) support, see [Clustering.md](Clustering.md).

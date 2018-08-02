@@ -146,8 +146,9 @@ public class MultiNodePubSubBasedTickFanOutActor extends TickFanOutActor {
             public boolean onMessage(String channel, IMessage<Object, byte[]> msg) {
                 TickMessage tickMsg = fromPubSubMessage(msg);
                 if (tickMsg != null) {
-                    if (lastTick != null && !StringUtils.equals(lastTick.id, tickMsg.id)
-                            && lastTick.timestamp.getTime() <= tickMsg.timestamp.getTime()) {
+                    if (lastTick != null && !StringUtils.equals(lastTick.getId(), tickMsg.getId())
+                            && lastTick.getTimestamp().getTime() <= tickMsg.getTimestamp()
+                                    .getTime()) {
                         lastTick = tickMsg;
                         self().tell(tickMsg, ActorRef.noSender());
                     }

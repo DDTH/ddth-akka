@@ -31,10 +31,11 @@ public class BaseQnd {
                 .orElse("my-actor-system");
 
         ActorSystem actorSystem = AkkaUtils.createActorSystem(actorSystemName, config);
+        LOGGER.info("Created actor system: " + actorSystem);
         System.out.println(actorSystem);
         for (Class<?> cl : actors) {
             ActorRef actorRef = actorSystem.actorOf(Props.create(cl), cl.getSimpleName());
-            LOGGER.info("Created actor [" + actorRef + "].");
+            LOGGER.info("Created actor [" + actorRef.path() + "].");
         }
         return actorSystem;
     }

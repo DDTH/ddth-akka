@@ -1,5 +1,6 @@
 package com.github.ddth.akka.cluster;
 
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.NoSuchElementException;
@@ -43,11 +44,21 @@ public class ClusterMemberUtils {
     private final static ConcurrentMap<Address, Member> members = new ConcurrentHashMap<>();
 
     /**
+     * Reset all nodes info.
+     * 
+     * @since 0.1.4
+     */
+    synchronized public static void resetNodes() {
+        members.clear();
+        nodeManager.clear();
+    }
+
+    /**
      * Add a member to cluster.
      * 
      * @param node
      */
-    public static void addNode(Member node) {
+    synchronized public static void addNode(Member node) {
         members.put(node.address(), node);
 
         Set<String> memberRoles = new HashSet<>(node.getRoles());
@@ -69,8 +80,9 @@ public class ClusterMemberUtils {
                 counter++;
             }
         }
-        LOGGER.info("Node [" + node.address() + "] with roles " + memberRoles + " is UP: " + counter
-                + "/" + memberRoles.size() + " role(s).");
+        LOGGER.info("Node [" + node.address() + "] with roles " + memberRoles
+                + " is UP. Current role repository: " + counter + "/" + memberRoles.size()
+                + " role(s).");
     }
 
     /**
@@ -78,7 +90,7 @@ public class ClusterMemberUtils {
      * 
      * @param node
      */
-    public static void removeNode(Member node) {
+    synchronized public static void removeNode(Member node) {
         members.remove(node.address());
 
         Set<String> memberRoles = new HashSet<>(node.getRoles());
@@ -129,5 +141,18 @@ public class ClusterMemberUtils {
             leader = null;
         }
         return leader;
+    }
+
+    /**
+     * Get all nodes for a role.
+     * 
+     * @param role
+     * @return
+     * @since 0.1.4
+     */
+    @SuppressWarnings("unchecked")
+    public static Set<Member> getNodes(String role) {
+        Set<Member> members = nodeManager.get(role);
+        return members != null ? Collections.unmodifiableSet(members) : Collections.EMPTY_SET;
     }
 }

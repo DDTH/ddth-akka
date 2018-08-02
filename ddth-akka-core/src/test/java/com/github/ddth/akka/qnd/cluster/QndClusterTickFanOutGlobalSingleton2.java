@@ -88,7 +88,7 @@ public class QndClusterTickFanOutGlobalSingleton2 extends BaseQnd {
         ActorSystem actorSystem2 = startActorSystem(
                 "com/github/ddth/akka/qnd/cluster/akka-cluster-node2.conf", MasterActor.class,
                 MyWorker.class, ClusterTickFanOutActor.class);
-        Thread.sleep(60000);
+        Thread.sleep(30000);
         actorSystem1.terminate();
         actorSystem2.terminate();
     }

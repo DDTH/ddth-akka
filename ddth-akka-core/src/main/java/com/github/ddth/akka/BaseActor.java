@@ -27,6 +27,45 @@ public class BaseActor extends UntypedAbstractActor {
     private final Logger LOGGER = LoggerFactory.getLogger(BaseActor.class);
 
     protected Map<Class<?>, Consumer<?>> messageHandler = new ConcurrentHashMap<>();
+    protected boolean handleMessageAsync = true;
+
+    /**
+     * {@code true} means message handlers are invoked asynchronously,
+     * {@code false} otherwise.
+     * 
+     * <p>
+     * Invoking message handlers asynchronously increases concurrency and
+     * overall performance. However, some certain references can not be used in
+     * asynchronous mode, for example: {@link #sender()} will always be
+     * {@code deadLetters}.
+     * </p>
+     * 
+     * @return
+     * @since 0.1.4
+     */
+    protected boolean isHandleMessageAsync() {
+        return handleMessageAsync;
+    }
+
+    /**
+     * {@code true} means message handlers are invoked asynchronously,
+     * {@code false} otherwise.
+     * 
+     * <p>
+     * Invoking message handlers asynchronously increases concurrency and
+     * overall performance. However, some certain references can not be used in
+     * asynchronous mode, for example: {@link #sender()} will always be
+     * {@code deadLetters}.
+     * </p>
+     * 
+     * @param value
+     * @return
+     * @since 0.1.4
+     */
+    protected BaseActor setHandleMessageAsync(boolean value) {
+        this.handleMessageAsync = value;
+        return this;
+    }
 
     /**
      * Convenient method to get actor path.
@@ -174,8 +213,12 @@ public class BaseActor extends UntypedAbstractActor {
             if (exactConsumer != null) {
                 // exact match
                 handled.set(true);
-                getExecutionContextExecutor(AkkaUtils.AKKA_DISPATCHER_WORKERS)
-                        .execute(() -> exactConsumer.accept(message));
+                if (handleMessageAsync) {
+                    getExecutionContextExecutor(AkkaUtils.AKKA_DISPATCHER_WORKERS)
+                            .execute(() -> exactConsumer.accept(message));
+                } else {
+                    exactConsumer.accept(message);
+                }
             }
         }
         if (!handled.get() && (mhmt == MessageHandlerMatchingType.EXACT_MATCH_THEN_INTERFACE
@@ -184,8 +227,12 @@ public class BaseActor extends UntypedAbstractActor {
                 // match interface/sub-class
                 if (clazz.isAssignableFrom(msgClazz)) {
                     handled.set(true);
-                    getExecutionContextExecutor(AkkaUtils.AKKA_DISPATCHER_WORKERS)
-                            .execute(() -> consumer.accept(message));
+                    if (handleMessageAsync) {
+                        getExecutionContextExecutor(AkkaUtils.AKKA_DISPATCHER_WORKERS)
+                                .execute(() -> consumer.accept(message));
+                    } else {
+                        consumer.accept(message);
+                    }
                 }
             });
         }
