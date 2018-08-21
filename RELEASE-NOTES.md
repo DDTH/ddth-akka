@@ -1,5 +1,10 @@
 # ddth-akka release notes
 
+## 0.1.4.1 - 2018-08-20
+
+- Bug fixes & enhancements: `BaseActor`, `BaseClusterActor`, `BaseWorker` and `BaseClusterWorker` obey `handleMessageAsync` setting.
+
+
 ## 0.1.4 - 2018-08-02
 
 - New class `BaseMessage`: base class to implement other Akka messages.

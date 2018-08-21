@@ -16,6 +16,8 @@ import com.github.ddth.dlock.IDLock;
 import com.github.ddth.dlock.LockResult;
 import com.github.ddth.dlock.impl.inmem.InmemDLock;
 
+import akka.actor.ActorSystem;
+import akka.actor.Scheduler;
 import scala.concurrent.duration.Duration;
 
 /**
@@ -529,9 +531,13 @@ public abstract class BaseWorker extends BaseActor {
                  * instances on other nodes may receive the very same
                  * tick-message and execute the same task.
                  */
-                getActorSystem().scheduler().scheduleOnce(Duration.create(1, TimeUnit.SECONDS),
-                        () -> unlock(dlockId),
-                        getExecutionContextExecutor(AkkaUtils.AKKA_DISPATCHER_WORKERS));
+                ActorSystem actorSystem = getActorSystem();
+                Scheduler scheduler = actorSystem != null ? actorSystem.scheduler() : null;
+                if (scheduler != null) {
+                    scheduler.scheduleOnce(Duration.create(1, TimeUnit.SECONDS),
+                            () -> unlock(dlockId),
+                            getExecutionContextExecutor(AkkaUtils.AKKA_DISPATCHER_WORKERS));
+                }
             }
         } else {
             dlockWait++;
@@ -553,6 +559,24 @@ public abstract class BaseWorker extends BaseActor {
         }
     }
 
+    private void _onTick(TickMessage tick) {
+        WorkerCoordinationPolicy wcp = getWorkerCoordinationPolicy();
+        switch (wcp) {
+        case LOCAL_SINGLETON:
+            doJobLocalSingleton(tick);
+            break;
+        case GLOBAL_SINGLETON:
+            doJobGlobalSingleton(tick);
+            break;
+        case TAKE_ALL_TASKS:
+            doJobTakeAllTasks(tick);
+            break;
+        default:
+            LOGGER.error("Received unrecognized worker-coordinator-policy value: " + wcp);
+        }
+        setLastTick(tick);
+    }
+
     /**
      * This method is called when a message of type {@link TickMessage} arrives.
      * 
@@ -560,23 +584,12 @@ public abstract class BaseWorker extends BaseActor {
      */
     protected void onTick(TickMessage tick) {
         if (isTickMatched(tick) || tick instanceof FirstTimeTickMessage) {
-            getExecutionContextExecutor(AkkaUtils.AKKA_DISPATCHER_WORKERS).execute(() -> {
-                WorkerCoordinationPolicy wcp = getWorkerCoordinationPolicy();
-                switch (wcp) {
-                case LOCAL_SINGLETON:
-                    doJobLocalSingleton(tick);
-                    break;
-                case GLOBAL_SINGLETON:
-                    doJobGlobalSingleton(tick);
-                    break;
-                case TAKE_ALL_TASKS:
-                    doJobTakeAllTasks(tick);
-                    break;
-                default:
-                    LOGGER.error("Received unrecognized worker-coordinator-policy value: " + wcp);
-                }
-                setLastTick(tick);
-            });
+            if (handleMessageAsync) {
+                getExecutionContextExecutor(AkkaUtils.AKKA_DISPATCHER_WORKERS)
+                        .execute(() -> _onTick(tick));
+            } else {
+                _onTick(tick);
+            }
         }
     }
 

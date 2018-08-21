@@ -23,11 +23,12 @@ public class QndClusterTickFanOutGlobalSingleton2 extends BaseQnd {
     private static Logger LOGGER = LoggerFactory
             .getLogger(QndClusterTickFanOutGlobalSingleton2.class);
     private static Random RAND = new Random(System.currentTimeMillis());
-    private static AtomicLong lastTimestamp = new AtomicLong();
-    private static AtomicLong lastSleep = new AtomicLong();
 
     @Scheduling(value = "*/3 * *", workerCoordinationPolicy = WorkerCoordinationPolicy.GLOBAL_SINGLETON, lockTime = 10000)
     static class MyWorker extends BaseClusterWorker {
+        private static AtomicLong lastTimestamp = new AtomicLong();
+        private static AtomicLong lastSleep = new AtomicLong();
+
         @Override
         protected String getGroupId() {
             return "group-id";
@@ -45,29 +46,32 @@ public class QndClusterTickFanOutGlobalSingleton2 extends BaseQnd {
 
         @Override
         protected void logBusy(TickMessage tick, boolean isGlobal) {
-            // if (isGlobal) {
-            // LOGGER.warn("\t{" + getActorPath().name()
-            // + "} Received TICK message, but another instance is taking the
-            // task. "
-            // + tick);
-            // } else {
-            // LOGGER.warn("\t{" + getActorPath().name()
-            // + "} Received TICK message, but I am busy! " + tick);
-            // }
+            if (isGlobal) {
+                String id = getCluster().selfMember().address() + ":" + self().path().name();
+                LOGGER.warn("\t{" + id
+                        + "} Received TICK message, but another instance is taking the task. "
+                        + tick.getTimestampStr("HH:mm:ss") + " / " + sender().path());
+            } else {
+                LOGGER.warn(
+                        "\t{" + getActorPath().name() + "} Received TICK message, but I am busy! "
+                                + tick.getTimestampStr("HH:mm:ss") + " / " + sender().path());
+            }
         }
 
         @Override
         protected void doJob(String lockId, TickMessage tick) throws Exception {
+            final String DF = "HH:mm:ss.SSS";
             Date now = new Date();
             long lastT = lastTimestamp.getAndSet(now.getTime());
             long lastS = lastSleep.get();
             long t = tick.getTimestamp().getTime();
             try {
-                LOGGER.info("{" + self().path().name() + "}: " + tick.getId() + " / "
-                        + DateFormatUtils.toString(now, DateFormatUtils.DF_ISO8601) + " / "
-                        + DateFormatUtils.toString(tick.getTimestamp(), DateFormatUtils.DF_ISO8601)
-                        + " / " + (now.getTime() - tick.getTimestamp().getTime()) + " / "
-                        + (lastT + lastS < t));
+                String id = getCluster().selfMember().address() + ":" + self().path().name();
+                LOGGER.info(
+                        "{" + id + "}: " + tick.getId() + " / " + DateFormatUtils.toString(now, DF)
+                                + " / " + DateFormatUtils.toString(tick.getTimestamp(), DF) + " / "
+                                + (now.getTime() - tick.getTimestamp().getTime()) + " / "
+                                + (lastT + lastS < t));
                 long sleepTime = 2500 + RAND.nextInt(1000);
                 LOGGER.info("\t{" + getActorPath().name() + "} sleepping for " + sleepTime);
                 lastSleep.set(sleepTime);
@@ -88,7 +92,7 @@ public class QndClusterTickFanOutGlobalSingleton2 extends BaseQnd {
         ActorSystem actorSystem2 = startActorSystem(
                 "com/github/ddth/akka/qnd/cluster/akka-cluster-node2.conf", MasterActor.class,
                 MyWorker.class, ClusterTickFanOutActor.class);
-        Thread.sleep(30000);
+        Thread.sleep(60000);
         actorSystem1.terminate();
         actorSystem2.terminate();
     }

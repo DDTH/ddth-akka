@@ -82,7 +82,8 @@ public class BaseActor extends UntypedAbstractActor {
      * @return
      */
     protected ActorSystem getActorSystem() {
-        return context().system();
+        akka.actor.ActorContext context = context();
+        return context != null ? context.system() : null;
     }
 
     /**
