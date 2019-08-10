@@ -1,40 +1,32 @@
 package com.github.ddth.akka.scheduling.tickfanout;
 
-import java.util.UUID;
-
-import org.apache.commons.codec.binary.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.github.ddth.akka.AkkaUtils;
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.actor.Props;
 import com.github.ddth.akka.scheduling.TickFanOutActor;
 import com.github.ddth.akka.scheduling.TickMessage;
+import com.github.ddth.akka.utils.AkkaUtils;
 import com.github.ddth.dlock.IDLock;
 import com.github.ddth.dlock.LockResult;
 import com.github.ddth.pubsub.IPubSubHub;
 import com.github.ddth.pubsub.ISubscriber;
 import com.github.ddth.queue.IMessage;
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.Props;
+import java.util.UUID;
 
 /**
  * Tick fan-out actor that broadcasts "tick" messages to workers in multi-node
  * mode using pub/sub.
- * 
+ *
  * <ul>
- * <li>At one specific time, only one
- * {@link MultiNodePubSubBasedTickFanOutActor} can publish tick-message to
- * pub/sub channel.</li>
- * <li>{@link MultiNodePubSubBasedTickFanOutActor} on all nodes receive the
- * tick-message.</li>
- * <li>Each {@link MultiNodePubSubBasedTickFanOutActor}, then, broadcast the
- * tick-message to local workers.</li>
- * <li>In short: at one specific time, only one
- * {@link MultiNodePubSubBasedTickFanOutActor} creates and publishes
- * tick-message. But the tick-message is received by all workers on all nodes.
- * It's up to the worker to decide the coordination.</li>
+ * <li>At one specific time, only one {@link MultiNodePubSubBasedTickFanOutActor} can publish tick-message to pub/sub channel.</li>
+ * <li>{@link MultiNodePubSubBasedTickFanOutActor} on all nodes receive the tick-message.</li>
+ * <li>Each {@link MultiNodePubSubBasedTickFanOutActor}, then, broadcast the tick-message to local workers.</li>
+ * <li>In short: at one specific time, only one {@link MultiNodePubSubBasedTickFanOutActor} creates and publishes tick-message.
+ * But the tick-message is received by all workers on all nodes. It's up to the worker to decide the coordination.</li>
  * </ul>
  *
  * @author Thanh Nguyen <btnguyen2k@gmail.com>
@@ -43,16 +35,13 @@ import akka.actor.Props;
  * @since 0.1.1
  */
 public class MultiNodePubSubBasedTickFanOutActor extends TickFanOutActor {
-
     /**
      * Default d-lock time in milliseconds.
      */
     public final static long DEFAULT_DLOCK_TIME_MS = 5000;
 
-    private final Logger LOGGER = LoggerFactory
-            .getLogger(MultiNodePubSubBasedTickFanOutActor.class);
-    public final static String ACTOR_NAME = AkkaUtils
-            .shortenClassName(MultiNodePubSubBasedTickFanOutActor.class);
+    private final Logger LOGGER = LoggerFactory.getLogger(MultiNodePubSubBasedTickFanOutActor.class);
+    public final static String ACTOR_NAME = AkkaUtils.shortenClassName(MultiNodePubSubBasedTickFanOutActor.class);
 
     /**
      * Helper method to create an instance of
@@ -60,8 +49,7 @@ public class MultiNodePubSubBasedTickFanOutActor extends TickFanOutActor {
      *
      * @param actorSystem
      * @param dlock
-     * @param dlockTimeMs
-     *            d-lock time in milliseconds.
+     * @param dlockTimeMs       d-lock time in milliseconds.
      * @param pubSubHub
      * @param pubSubChannelName
      * @return
@@ -69,8 +57,8 @@ public class MultiNodePubSubBasedTickFanOutActor extends TickFanOutActor {
      */
     public static ActorRef newInstance(ActorSystem actorSystem, IDLock dlock, long dlockTimeMs,
             IPubSubHub<?, byte[]> pubSubHub, String pubSubChannelName) {
-        Props props = Props.create(MultiNodePubSubBasedTickFanOutActor.class, dlock, dlockTimeMs,
-                pubSubHub, pubSubChannelName);
+        Props props = Props
+                .create(MultiNodePubSubBasedTickFanOutActor.class, dlock, dlockTimeMs, pubSubHub, pubSubChannelName);
         return actorSystem.actorOf(props, ACTOR_NAME);
     }
 
@@ -85,8 +73,8 @@ public class MultiNodePubSubBasedTickFanOutActor extends TickFanOutActor {
      * @return
      * @since 0.1.1
      */
-    public static ActorRef newInstance(ActorSystem actorSystem, IDLock dlock,
-            IPubSubHub<?, byte[]> pubSubHub, String pubSubChannelName) {
+    public static ActorRef newInstance(ActorSystem actorSystem, IDLock dlock, IPubSubHub<?, byte[]> pubSubHub,
+            String pubSubChannelName) {
         return newInstance(actorSystem, dlock, DEFAULT_DLOCK_TIME_MS, pubSubHub, pubSubChannelName);
     }
 
@@ -108,8 +96,8 @@ public class MultiNodePubSubBasedTickFanOutActor extends TickFanOutActor {
      * @param pubSubChannelName
      * @since 0.1.1
      */
-    public MultiNodePubSubBasedTickFanOutActor(IDLock dlock, long dlockTimeMs,
-            IPubSubHub<Object, byte[]> pubSubHub, String pubSubChannelName) {
+    public MultiNodePubSubBasedTickFanOutActor(IDLock dlock, long dlockTimeMs, IPubSubHub<Object, byte[]> pubSubHub,
+            String pubSubChannelName) {
         this.dlock = dlock;
         this.dlockTimeMs = dlockTimeMs;
         this.dlockId = UUID.randomUUID().toString();
@@ -118,7 +106,7 @@ public class MultiNodePubSubBasedTickFanOutActor extends TickFanOutActor {
     }
 
     /**
-     * Create a new {@link MultiNodePubSubBasedTickFanOutActor} instance.
+     * Create a new {@link MultiNodePubSubBasedTickFanOutActor} instance with default d-lock time.
      *
      * @param dlock
      * @param pubSubHub
@@ -141,20 +129,16 @@ public class MultiNodePubSubBasedTickFanOutActor extends TickFanOutActor {
 
         lastTick = new TickMessage();
 
-        subscriber = new ISubscriber<Object, byte[]>() {
-            @Override
-            public boolean onMessage(String channel, IMessage<Object, byte[]> msg) {
-                TickMessage tickMsg = fromPubSubMessage(msg);
-                if (tickMsg != null) {
-                    if (lastTick != null && !StringUtils.equals(lastTick.getId(), tickMsg.getId())
-                            && lastTick.getTimestamp().getTime() <= tickMsg.getTimestamp()
-                                    .getTime()) {
-                        lastTick = tickMsg;
-                        self().tell(tickMsg, ActorRef.noSender());
-                    }
+        subscriber = (channel, msg) -> {
+            TickMessage tickMsg = fromPubSubMessage(msg);
+            if (tickMsg != null) {
+                if (lastTick != null && !StringUtils.equals(lastTick.getId(), tickMsg.getId())
+                        && lastTick.getTimestamp().getTime() <= tickMsg.getTimestamp().getTime()) {
+                    lastTick = tickMsg;
+                    self().tell(tickMsg, ActorRef.noSender());
                 }
-                return true;
             }
+            return true;
         };
         pubSubHub.subscribe(pubSubChannelName, subscriber);
     }
@@ -240,5 +224,4 @@ public class MultiNodePubSubBasedTickFanOutActor extends TickFanOutActor {
         }
         return false;
     }
-
 }

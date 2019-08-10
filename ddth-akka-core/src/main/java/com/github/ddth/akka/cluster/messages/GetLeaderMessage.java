@@ -1,15 +1,13 @@
 package com.github.ddth.akka.cluster.messages;
 
+import com.github.ddth.akka.BaseMessage;
+import com.github.ddth.akka.cluster.MasterActor;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 
-import com.github.ddth.akka.BaseMessage;
-import com.github.ddth.akka.cluster.MasterActor;
-
 /**
- * Send this message to {@link MasterActor} to ask who is currently the role
- * leader.
- * 
+ * Send this message to {@link MasterActor} to ask who currently has the role leader.
+ *
  * @author Thanh Nguyen <btnguyen2k@gmail.com>
  * @since 0.1.4
  */

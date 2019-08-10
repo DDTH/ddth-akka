@@ -1,15 +1,7 @@
 package com.github.ddth.akka.cluster.scheduling;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.github.ddth.akka.AkkaUtils;
+import akka.actor.ActorSystem;
+import akka.actor.Scheduler;
 import com.github.ddth.akka.cluster.BaseClusterActor;
 import com.github.ddth.akka.cluster.ClusterMemberUtils;
 import com.github.ddth.akka.cluster.DistributedDataUtils.DDGetResult;
@@ -18,10 +10,16 @@ import com.github.ddth.akka.scheduling.CronFormat;
 import com.github.ddth.akka.scheduling.TickMessage;
 import com.github.ddth.akka.scheduling.WorkerCoordinationPolicy;
 import com.github.ddth.akka.scheduling.annotation.Scheduling;
-
-import akka.actor.ActorSystem;
-import akka.actor.Scheduler;
+import com.github.ddth.akka.utils.AkkaUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import scala.concurrent.duration.Duration;
+
+import java.util.Collection;
+import java.util.Collections;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Base class to implement cluster workers.
@@ -29,28 +27,18 @@ import scala.concurrent.duration.Duration;
  * <p>
  * Worker implementation:
  * <ul>
- * <li>Worker is scheduled to perform task. Scheduling configuration is in
- * Cron-like format (see {@link CronFormat} and {@link #getScheduling()}).</li>
- * <li>At every "tick", worker receives a "tick" message (see
- * {@link TickMessage}). The "tick" message carries a timestamp and a unique id.
- * This timestamp is checked against worker's scheduling configuration so
- * determine that worker's task should be fired off.</li>
- * <li>If worker's task is due, {@link #doJob(TickMessage)} is called.
- * {@link #doJob(TickMessage)} then calls {@link #getWorkerCoordinationPolicy()}
+ * <li>Worker is scheduled to perform task. Scheduling configuration is in Cron-like format (see {@link CronFormat} and {@link #getScheduling()}).</li>
+ * <li>At every "tick", worker receives a "tick" message (see {@link TickMessage}). The "tick" message carries a timestamp and a unique id.
+ * This timestamp is checked against worker's scheduling configuration so determine that worker's task should be fired off or not.</li>
+ * <li>If worker's task is due, {@link #onTick(TickMessage)} is called. {@link #onTick(TickMessage)} then calls {@link #getWorkerCoordinationPolicy()}
  * <ul>
- * <li>If {@link WorkerCoordinationPolicy#TAKE_ALL_TASKS} is returned,
- * {@link #doJobTakeAllTasks(TickMessage)} is called.</li>
- * <li>If {@link WorkerCoordinationPolicy#LOCAL_SINGLETON} is returned,
- * {@link #doJobLocalSingleton(TickMessage)} is called.</li>
- * <li>If {@link WorkerCoordinationPolicy#GLOBAL_SINGLETON} is returned,
- * {@link #doJobGlobalSingleton(TickMessage)} is called.</li>
+ * <li>If {@link WorkerCoordinationPolicy#TAKE_ALL_TASKS} is returned, {@link #doJobTakeAllTasks(TickMessage)} is called.</li>
+ * <li>If {@link WorkerCoordinationPolicy#LOCAL_SINGLETON} is returned, {@link #doJobLocalSingleton(TickMessage)} is called.</li>
+ * <li>If {@link WorkerCoordinationPolicy#GLOBAL_SINGLETON} is returned, {@link #doJobGlobalSingleton(TickMessage)} is called.</li>
  * </ul>
  * </li>
- * <li>{@link #doJobTakeAllTasks(TickMessage)},
- * {@link #doJobLocalSingleton(TickMessage)} and
- * {@link #doJobGlobalSingleton(TickMessage)} resolve worker coordinating stuff
- * and finally call {@link #doJob(String, TickMessage)}; sub-class override this
- * method to implement its business logic.</li>
+ * <li>{@link #doJobTakeAllTasks(TickMessage)}, {@link #doJobLocalSingleton(TickMessage)} and {@link #doJobGlobalSingleton(TickMessage)} resolve worker coordinating stuff
+ * and finally call {@link #doJob(String, TickMessage)}; sub-class override this method to implement its business logic.</li>
  * </ul>
  * </p>
  *
@@ -58,7 +46,6 @@ import scala.concurrent.duration.Duration;
  * @since 0.1.3
  */
 public abstract class BaseClusterWorker extends BaseClusterActor {
-
     /**
      * Special "tick" message to be sent only once when actor starts.
      */
@@ -72,26 +59,44 @@ public abstract class BaseClusterWorker extends BaseClusterActor {
     private long lockTimeMs = DEFAULT_LOCK_TIME_MS;
 
     public BaseClusterWorker() {
+        parseAnnotation();
         parseLockTimeFromAnnotation();
     }
 
     public BaseClusterWorker(long lockTimeMs) {
         this.lockTimeMs = lockTimeMs;
+        parseAnnotation();
+    }
+
+    /**
+     * @since 1.0.0
+     */
+    protected void parseAnnotation() {
+        Scheduling[] schedulings = getClass().getAnnotationsByType(Scheduling.class);
+        annotatedScheduling = schedulings != null && schedulings.length > 0 ? schedulings[0] : null;
+    }
+
+    /**
+     * @return
+     * @since 1.0.0
+     */
+    protected Scheduling getAnnotatedScheduling() {
+        return annotatedScheduling;
     }
 
     private void parseLockTimeFromAnnotation() {
-        Scheduling[] schedulings = getClass().getAnnotationsByType(Scheduling.class);
-        if (schedulings != null && schedulings.length > 0) {
-            lockTimeMs = schedulings[0].lockTime();
+        if (annotatedScheduling != null) {
+            lockTimeMs = annotatedScheduling.lockTime();
         }
     }
 
     private Boolean runFirstTimeRegardlessScheduling;
+    private Scheduling annotatedScheduling;
 
     /**
-     * If {@code true}, the first "tick" will fire as soon as the actor starts,
+     * If {@code true}, the first "tick" will fire off task-executing as soon as the actor starts,
      * ignoring tick-matching check.
-     * 
+     *
      * <p>
      * If worker is annotated by {@link Scheduling}, this method returns value
      * of {@link Scheduling#runFirstTimeRegardlessScheduling()}. Otherwise this
@@ -102,34 +107,27 @@ public abstract class BaseClusterWorker extends BaseClusterActor {
      * @return
      */
     protected boolean isRunFirstTimeRegardlessScheduling() {
-        if (runFirstTimeRegardlessScheduling == null) {
-            Scheduling[] schedulings = getClass().getAnnotationsByType(Scheduling.class);
-            if (schedulings != null && schedulings.length > 0) {
-                runFirstTimeRegardlessScheduling = schedulings[0]
-                        .runFirstTimeRegardlessScheduling();
-            }
+        if (runFirstTimeRegardlessScheduling == null && annotatedScheduling != null) {
+            setRunFirstTimeRegardlessScheduling(annotatedScheduling.runFirstTimeRegardlessScheduling());
         }
-        return runFirstTimeRegardlessScheduling != null
-                ? runFirstTimeRegardlessScheduling.booleanValue() : false;
+        return runFirstTimeRegardlessScheduling != null ? runFirstTimeRegardlessScheduling.booleanValue() : false;
     }
 
     /**
-     * Setter for {@link #runFirstTimeRegardlessScheduling}.
-     * 
-     * If {@code true}, the first "tick" will fire as soon as the actor starts,
+     * If {@code true}, the first "tick" will fire off task-executing as soon as the actor starts,
      * ignoring tick-matching check.
-     * 
+     *
      * @param value
      * @return
      */
     public BaseClusterWorker setRunFirstTimeRegardlessScheduling(boolean value) {
-        runFirstTimeRegardlessScheduling = value;
+        runFirstTimeRegardlessScheduling = value ? Boolean.TRUE : Boolean.FALSE;
         return this;
     }
 
     /**
      * Get lock's duration.
-     * 
+     *
      * @return lock duration in milliseconds
      */
     protected long getLockDuration() {
@@ -138,9 +136,8 @@ public abstract class BaseClusterWorker extends BaseClusterActor {
 
     /**
      * Set lock's duration.
-     * 
-     * @param duration
-     *            lock duration in milliseconds
+     *
+     * @param duration lock duration in milliseconds
      * @return
      */
     public BaseClusterWorker setLockDuration(long duration) {
@@ -151,7 +148,7 @@ public abstract class BaseClusterWorker extends BaseClusterActor {
     /**
      * This method returns actor's name. Sub-class may override this method to
      * implement its own logic.
-     * 
+     *
      * @return
      */
     protected String getGroupId() {
@@ -168,8 +165,9 @@ public abstract class BaseClusterWorker extends BaseClusterActor {
      */
     @Override
     protected Collection<String[]> topicSubscriptions() {
-        return getWorkerCoordinationPolicy() == WorkerCoordinationPolicy.GLOBAL_SINGLETON
-                ? topicSubscriptionOne : topicSubscriptionAll;
+        return getWorkerCoordinationPolicy() == WorkerCoordinationPolicy.GLOBAL_SINGLETON ?
+                topicSubscriptionOne :
+                topicSubscriptionAll;
     }
 
     /**
@@ -191,8 +189,8 @@ public abstract class BaseClusterWorker extends BaseClusterActor {
     private CronFormat scheduling;
 
     /**
-     * Get worker's scheduling settings as {@link CronFormat}.
-     * 
+     * Worker's scheduling settings as {@link CronFormat}.
+     *
      * <p>
      * If worker is annotated by {@link Scheduling}, this method returns value
      * of {@link Scheduling#value()}. Otherwise this method throws
@@ -204,22 +202,19 @@ public abstract class BaseClusterWorker extends BaseClusterActor {
      */
     protected CronFormat getScheduling() {
         if (scheduling == null) {
-            Scheduling[] schedulings = getClass().getAnnotationsByType(Scheduling.class);
-            if (schedulings != null && schedulings.length > 0) {
-                scheduling = CronFormat.parse(schedulings[0].value());
-            }
+            scheduling = annotatedScheduling != null ? CronFormat.parse(annotatedScheduling.value()) : null;
         }
         if (scheduling != null) {
             return scheduling;
         }
         throw new IllegalStateException(
-                "No scheduling defined. Scheduling can be defined via annotation "
-                        + Scheduling.class + ", or overriding method getScheduling().");
+                "No scheduling defined. Scheduling can be defined via annotation " + Scheduling.class
+                        + ", or overriding method getScheduling().");
     }
 
     /**
-     * Setter for {@link #scheduling}.
-     * 
+     * Worker's scheduling settings as {@link CronFormat}.
+     *
      * @param scheduling
      * @return
      */
@@ -228,16 +223,17 @@ public abstract class BaseClusterWorker extends BaseClusterActor {
         return this;
     }
 
+    protected final static String DD_RECORD_KEY_LAST_TICK = "last-tick";
     private TickMessage lastTick;
 
     /**
      * Get last "tick".
-     * 
+     *
      * @return
      */
     protected TickMessage getLastTick() {
         if (getWorkerCoordinationPolicy() == WorkerCoordinationPolicy.GLOBAL_SINGLETON) {
-            DDGetResult getResult = ddGet("last-tick");
+            DDGetResult getResult = ddGet(DD_RECORD_KEY_LAST_TICK);
             return getResult != null ? getResult.singleValueAs(TickMessage.class) : null;
         }
         return lastTick;
@@ -245,12 +241,12 @@ public abstract class BaseClusterWorker extends BaseClusterActor {
 
     /**
      * Set last "tick"
-     * 
+     *
      * @param tick
      */
     protected void setLastTick(TickMessage tick) {
         if (getWorkerCoordinationPolicy() == WorkerCoordinationPolicy.GLOBAL_SINGLETON) {
-            ddSet("last-tick", tick);
+            ddSet(DD_RECORD_KEY_LAST_TICK, tick);
         } else {
             lastTick = tick;
         }
@@ -260,12 +256,12 @@ public abstract class BaseClusterWorker extends BaseClusterActor {
      * 30 seconds
      */
     protected final static long DEFAULT_LATE_TICK_THRESHOLD_MS = 30000L;
-    private long defaultLateTickThresholdMs = DEFAULT_LATE_TICK_THRESHOLD_MS;
+    private long lateTickThresholdMs = DEFAULT_LATE_TICK_THRESHOLD_MS;
 
     /**
      * Sometimes "tick" message comes late. This method returns the maximum
      * amount of time (in milliseconds) the "tick" message can come late.
-     * 
+     *
      * <p>
      * This method return {@link #DEFAULT_LATE_TICK_THRESHOLD_MS}. Sub-class may
      * override this method to customize its own business logic.
@@ -274,22 +270,18 @@ public abstract class BaseClusterWorker extends BaseClusterActor {
      * @return
      */
     protected long getLateTickThresholdMs() {
-        return defaultLateTickThresholdMs;
+        return lateTickThresholdMs;
     }
 
     /**
-     * Setter for {@link #defaultLateTickThresholdMs}.
-     * 
-     * <p>
-     * Sometimes "tick" message comes late. This method returns the maximum
+     * Sometimes "tick" message comes late. This method sets the maximum
      * amount of time (in milliseconds) the "tick" message can come late.
-     * </p>
-     * 
+     *
      * @param defaultLateTickThresholdMs
      * @return
      */
     public BaseClusterWorker setLateTickThresholdMs(long defaultLateTickThresholdMs) {
-        this.defaultLateTickThresholdMs = defaultLateTickThresholdMs;
+        this.lateTickThresholdMs = defaultLateTickThresholdMs;
         return this;
     }
 
@@ -316,32 +308,30 @@ public abstract class BaseClusterWorker extends BaseClusterActor {
     private WorkerCoordinationPolicy workerCoordinationPolicy;
 
     /**
-     * If worker is annotated by {@link Scheduling}, this method returns value
+     * Specify how workers are coordinated.
+     *
+     * <p>If worker is annotated by {@link Scheduling}, this method returns value
      * of {@link Scheduling#workerCoordinationPolicy()}. Otherwise this method
      * returns {@link WorkerCoordinationPolicy#TAKE_ALL_TASKS}. Sub-class may
-     * override this method to customize its own business logic.
-     * 
+     * override this method to customize its own business logic.</p>
+     *
      * @return
      */
     protected WorkerCoordinationPolicy getWorkerCoordinationPolicy() {
         if (workerCoordinationPolicy == null) {
-            Scheduling[] schedulings = getClass().getAnnotationsByType(Scheduling.class);
-            if (schedulings != null && schedulings.length > 0) {
-                workerCoordinationPolicy = schedulings[0].workerCoordinationPolicy();
-            }
+            workerCoordinationPolicy =
+                    annotatedScheduling != null ? annotatedScheduling.workerCoordinationPolicy() : null;
         }
-        return workerCoordinationPolicy != null ? workerCoordinationPolicy
-                : WorkerCoordinationPolicy.TAKE_ALL_TASKS;
+        return workerCoordinationPolicy != null ? workerCoordinationPolicy : WorkerCoordinationPolicy.TAKE_ALL_TASKS;
     }
 
     /**
-     * Setter for {@link #workerCoordinationPolicy}.
-     * 
+     * Specify how workers are coordinated.
+     *
      * @param workerCoordinationPolicy
      * @return
      */
-    public BaseClusterWorker setWorkerCoordinationPolicy(
-            WorkerCoordinationPolicy workerCoordinationPolicy) {
+    public BaseClusterWorker setWorkerCoordinationPolicy(WorkerCoordinationPolicy workerCoordinationPolicy) {
         this.workerCoordinationPolicy = workerCoordinationPolicy;
         return this;
     }
@@ -349,35 +339,33 @@ public abstract class BaseClusterWorker extends BaseClusterActor {
     /**
      * Log a message explaining that the worker receives a task but is unable to
      * execute it because the worker is currently busy.
-     * 
+     *
      * @param tick
      * @param isGlobal
      */
     protected void logBusy(TickMessage tick, boolean isGlobal) {
         if (isGlobal) {
-            LOGGER.warn("{" + getActorPath()
-                    + "} Received TICK message, but another instance is taking the task. " + tick);
+            LOGGER.warn(
+                    "{" + getActorPath() + "} Received TICK message, but another instance is taking the task. " + tick);
         } else {
             LOGGER.warn("{" + getActorPath() + "} Received TICK message, but I am busy! " + tick);
         }
     }
 
     /**
-     * Sub-class implements this method to actually perform worker business
-     * logic.
+     * Sub-class implements this method to actually perform worker's business logic.
      *
-     * @param lockId
+     * @param distributedLockId distributed lock is, or {@code null} if worker is "local"
      * @param tick
      * @throws Exception
      */
-    protected abstract void doJob(String lockId, TickMessage tick) throws Exception;
+    protected abstract void doJob(String distributedLockId, TickMessage tick) throws Exception;
 
     private Lock localLock = new ReentrantLock(true);
 
     /**
-     * Execute job, local singleton mode, called by
-     * {@link #onTick(TickMessage)}.
-     * 
+     * Execute job, local singleton mode, called by {@link #onTick(TickMessage)}.
+     *
      * @param tick
      */
     protected void doJobLocalSingleton(TickMessage tick) {
@@ -385,8 +373,7 @@ public abstract class BaseClusterWorker extends BaseClusterActor {
             try {
                 doJob(null, tick);
             } catch (Exception e) {
-                LOGGER.error("{" + getActorPath() + "} Error while doing job: " + e.getMessage(),
-                        e);
+                LOGGER.error("{" + getActorPath() + "} Error while doing job: " + e.getMessage(), e);
             } finally {
                 localLock.unlock();
             }
@@ -399,7 +386,7 @@ public abstract class BaseClusterWorker extends BaseClusterActor {
 
     /**
      * Get lock-key used by {@link #ddLock(String, String, long, TimeUnit)}.
-     * 
+     *
      * @return
      */
     protected String getLockKey() {
@@ -411,7 +398,7 @@ public abstract class BaseClusterWorker extends BaseClusterActor {
 
     /**
      * Generate a lock-id. Must be unique globally.
-     * 
+     *
      * @return
      */
     protected String generateLockId() {
@@ -419,14 +406,15 @@ public abstract class BaseClusterWorker extends BaseClusterActor {
     }
 
     /**
-     * Execute job, global singleton mode, called by
-     * {@link #onTick(TickMessage)}.
-     * 
+     * Execute job, global singleton mode, called by {@link #onTick(TickMessage)}.
+     *
+     * <p>
      * Do not forget to release lock. However, delay a short period before
      * releasing lock to avoid the case that {@link #doJob(String, TickMessage)}
      * is do fast that worker instance on another node may receive the very same
      * tick-message and execute the same task.
-     * 
+     * </p>
+     *
      * @param tick
      */
     protected void doJobGlobalSingleton(TickMessage tick) {
@@ -435,8 +423,7 @@ public abstract class BaseClusterWorker extends BaseClusterActor {
             try {
                 doJob(lockId, tick);
             } catch (Exception e) {
-                LOGGER.error("{" + getActorPath() + "} Error while doing job: " + e.getMessage(),
-                        e);
+                LOGGER.error("{" + getActorPath() + "} Error while doing job: " + e.getMessage(), e);
             } finally {
                 /**
                  * Do not forget to release lock. However, delay a short period
@@ -448,9 +435,11 @@ public abstract class BaseClusterWorker extends BaseClusterActor {
                 ActorSystem actorSystem = getActorSystem();
                 Scheduler scheduler = actorSystem != null ? actorSystem.scheduler() : null;
                 if (scheduler != null) {
-                    scheduler.scheduleOnce(Duration.create(1, TimeUnit.SECONDS),
-                            () -> ddUnlock(getLockKey(), lockId),
+                    scheduler.scheduleOnce(Duration.create(1, TimeUnit.SECONDS), () -> ddUnlock(getLockKey(), lockId),
                             getExecutionContextExecutor(AkkaUtils.AKKA_DISPATCHER_WORKERS));
+                } else {
+                    LOGGER.warn("Cannot obtain a Scheduler from ActorSystem.");
+                    ddUnlock(getLockKey(), lockId);
                 }
             }
         } else {
@@ -460,7 +449,7 @@ public abstract class BaseClusterWorker extends BaseClusterActor {
 
     /**
      * Execute job, take-all-tasks mode, called by {@link #onTick(TickMessage)}.
-     * 
+     *
      * @param tick
      */
     protected void doJobTakeAllTasks(TickMessage tick) {
@@ -491,14 +480,13 @@ public abstract class BaseClusterWorker extends BaseClusterActor {
 
     /**
      * This method is called when a message of type {@link TickMessage} arrives.
-     * 
+     *
      * @param tick
      */
     protected void onTick(TickMessage tick) {
         if (isTickMatched(tick) || tick instanceof FirstTimeTickMessage) {
             if (handleMessageAsync) {
-                getExecutionContextExecutor(AkkaUtils.AKKA_DISPATCHER_WORKERS)
-                        .execute(() -> _onTick(tick));
+                getExecutionContextExecutor(AkkaUtils.AKKA_DISPATCHER_WORKERS).execute(() -> _onTick(tick));
             } else {
                 _onTick(tick);
             }

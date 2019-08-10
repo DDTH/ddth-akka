@@ -1,5 +1,10 @@
 # ddth-akka release notes
 
+## 1.0.0 - 2019-08-09
+
+- Migrate to `Java 11`.
+
+
 ## 0.1.4.1 - 2018-08-20
 
 - Bug fixes & enhancements: `BaseActor`, `BaseClusterActor`, `BaseWorker` and `BaseClusterWorker` obey `handleMessageAsync` setting.

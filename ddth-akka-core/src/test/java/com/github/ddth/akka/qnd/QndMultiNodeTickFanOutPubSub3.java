@@ -1,14 +1,8 @@
 package com.github.ddth.akka.qnd;
 
-import java.util.Date;
-import java.util.Random;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicLongArray;
-
-import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.actor.Props;
 import com.github.ddth.akka.AkkaUtils;
 import com.github.ddth.akka.scheduling.BaseWorker;
 import com.github.ddth.akka.scheduling.TickMessage;
@@ -19,13 +13,16 @@ import com.github.ddth.dlock.IDLock;
 import com.github.ddth.dlock.impl.redis.RedisDLockFactory;
 import com.github.ddth.pubsub.impl.universal.idint.UniversalRedisPubSubHub;
 import com.google.common.util.concurrent.AtomicDoubleArray;
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.Props;
+import java.util.Date;
+import java.util.Random;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicLongArray;
 
 public class QndMultiNodeTickFanOutPubSub3 {
-
     static {
         System.setProperty("org.slf4j.simpleLogger.logFile", "System.out");
         System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "debug");
@@ -74,16 +71,14 @@ public class QndMultiNodeTickFanOutPubSub3 {
                     rate.set(i, Math.round(d * 10.0) / 10.0);
                 }
 
-                LOGGER.info(self().path().name() + ": " + tick.getTimestampStr("HH:mm:ss")
-                        + (valid ? " [Y]" : " [N]") + " / Delay: "
-                        + (now.getTime() - tick.getTimestamp().getTime()) + "ms / Counter: "
+                LOGGER.info(self().path().name() + ": " + tick.getTimestampStr("HH:mm:ss") + (valid ? " [Y]" : " [N]")
+                        + " / Delay: " + (now.getTime() - tick.getTimestamp().getTime()) + "ms / Counter: "
                         + COUNTER_HIT + " / Rate: " + rate);
 
                 LASTTICK.set(tick.getTimestamp().getTime());
                 Thread.sleep(RAND.nextInt(3000));
             } finally {
-                if (!StringUtils.isBlank(dlockId)
-                        && System.currentTimeMillis() - now.getTime() > 1000) {
+                if (!StringUtils.isBlank(dlockId) && System.currentTimeMillis() - now.getTime() > 1000) {
                     unlock(dlockId);
                 }
             }
@@ -98,8 +93,7 @@ public class QndMultiNodeTickFanOutPubSub3 {
                     .setLockNamePrefix("dlock-").init();
 
             try (UniversalRedisPubSubHub pubSub = new UniversalRedisPubSubHub()) {
-                pubSub.setRedisHostAndPort(redisHostsAndPorts).setRedisPassword(redisPassword)
-                        .init();
+                pubSub.setRedisHostAndPort(redisHostsAndPorts).setRedisPassword(redisPassword).init();
 
                 ActorSystem actorSystem = AkkaUtils.createActorSystem("my-actor-system");
                 try {
@@ -107,15 +101,15 @@ public class QndMultiNodeTickFanOutPubSub3 {
 
                     for (int i = 0; i < NUM_WORKERS; i++) {
                         IDLock dlock = dlockFactory.createLock("worker");
-                        System.out.println("Actor: " + actorSystem.actorOf(
-                                Props.create(GlobalSingletonWorker.class, dlock, i), "worker" + i));
+                        System.out.println("Worker" + i + ": " + actorSystem
+                                .actorOf(Props.create(GlobalSingletonWorker.class, dlock, i), "worker" + i));
                     }
 
                     IDLock dlock = dlockFactory.createLock("demo");
                     System.out.println("DLock: " + dlock);
                     ActorRef tickFanOut = MultiNodePubSubBasedTickFanOutActor
                             .newInstance(actorSystem, dlock, pubSub, "pubSubChannel");
-                    System.out.println(tickFanOut);
+                    System.out.println("Tick fan-out: " + tickFanOut);
 
                     Thread.sleep(600000);
 

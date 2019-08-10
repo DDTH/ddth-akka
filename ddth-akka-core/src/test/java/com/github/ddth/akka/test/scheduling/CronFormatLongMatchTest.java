@@ -25,6 +25,7 @@ public class CronFormatLongMatchTest extends TestCase {
         try {
             r.run();
         } catch (Throwable t) {
+
             return t;
         }
         return null;

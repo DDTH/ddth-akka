@@ -1,14 +1,13 @@
 package com.github.ddth.akka.test.scheduling;
 
-import java.util.Calendar;
-import java.util.Date;
-
 import com.github.ddth.akka.scheduling.CronFormat;
 import com.github.ddth.commons.utils.DateFormatUtils;
-
 import junit.framework.Test;
 import junit.framework.TestCase;
 import junit.framework.TestSuite;
+
+import java.util.Calendar;
+import java.util.Date;
 
 public class CronFormatShortMatchTest extends TestCase {
 

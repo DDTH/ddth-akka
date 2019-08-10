@@ -1,24 +1,17 @@
 package com.github.ddth.akka.cluster;
 
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.NoSuchElementException;
-import java.util.Set;
-import java.util.SortedSet;
-import java.util.TreeSet;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-
+import akka.actor.Address;
+import akka.cluster.Member;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import akka.actor.Address;
-import akka.cluster.Member;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * Utility class to manage cluster's member nodes.
- * 
+ *
  * @author Thanh Nguyen <btnguyen2k@gmail.com>
  * @since 0.1.3
  */
@@ -45,7 +38,7 @@ public class ClusterMemberUtils {
 
     /**
      * Reset all nodes info.
-     * 
+     *
      * @since 0.1.4
      */
     synchronized public static void resetNodes() {
@@ -55,7 +48,7 @@ public class ClusterMemberUtils {
 
     /**
      * Add a member to cluster.
-     * 
+     *
      * @param node
      */
     synchronized public static void addNode(Member node) {
@@ -65,29 +58,18 @@ public class ClusterMemberUtils {
         memberRoles.add(ROLE_ALL);
         int counter = 0;
         for (String role : memberRoles) {
-            nodeManager.putIfAbsent(role, new TreeSet<Member>(new Comparator<Member>() {
-                public int compare(Member a, Member b) {
-                    if (a.isOlderThan(b)) {
-                        return -1;
-                    } else if (b.isOlderThan(a)) {
-                        return 1;
-                    } else {
-                        return 0;
-                    }
-                }
-            }));
+            nodeManager.putIfAbsent(role, new TreeSet<>((a, b) -> a.isOlderThan(b) ? -1 : (b.isOlderThan(a) ? 1 : 0)));
             if (nodeManager.get(role).add(node)) {
                 counter++;
             }
         }
-        LOGGER.info("Node [" + node.address() + "] with roles " + memberRoles
-                + " is UP. Current role repository: " + counter + "/" + memberRoles.size()
-                + " role(s).");
+        LOGGER.info("Node [" + node.address() + "] with roles " + memberRoles + " is UP. Current role repository: "
+                + counter + "/" + memberRoles.size() + " role(s).");
     }
 
     /**
      * Remove a member from cluster.
-     * 
+     *
      * @param node
      */
     synchronized public static void removeNode(Member node) {
@@ -104,20 +86,20 @@ public class ClusterMemberUtils {
                 }
             }
         }
-        LOGGER.info("Node [" + node.address() + "] with roles " + memberRoles + " is REMOVED: "
-                + counter + "/" + memberRoles.size() + " role(s).");
+        LOGGER.info("Node [" + node.address() + "] with roles " + memberRoles + " is REMOVED: " + counter + "/"
+                + memberRoles.size() + " role(s).");
     }
 
     /**
      * Check if a node is leader for a role.
-     * 
+     *
      * @param role
      * @param node
      * @return
      */
     public static boolean isLeader(String role, Member node) {
         SortedSet<Member> members = nodeManager.get(role);
-        Member leader = null;
+        Member leader;
         try {
             leader = members != null ? members.first() : null;
         } catch (NoSuchElementException e) {
@@ -128,24 +110,22 @@ public class ClusterMemberUtils {
 
     /**
      * Get leader node for a role.
-     * 
+     *
      * @param role
      * @return
      */
     public static Member getLeader(String role) {
         SortedSet<Member> members = nodeManager.get(role);
-        Member leader = null;
         try {
-            leader = members != null ? members.first() : null;
+            return members != null ? members.first() : null;
         } catch (NoSuchElementException e) {
-            leader = null;
+            return null;
         }
-        return leader;
     }
 
     /**
      * Get all nodes for a role.
-     * 
+     *
      * @param role
      * @return
      * @since 0.1.4

@@ -15,7 +15,6 @@ import akka.serialization.JSerializer;
  * @since 0.1.3
  */
 public class DdthAkkaSerializer extends JSerializer {
-
     /**
      * {@inheritDoc}
      */
@@ -37,7 +36,7 @@ public class DdthAkkaSerializer extends JSerializer {
      */
     @Override
     public byte[] toBinary(Object o) {
-        return SerializationUtils.toByteArray(o);
+        return SerializationUtils.toByteArrayFst(o);
     }
 
     /**
@@ -45,6 +44,6 @@ public class DdthAkkaSerializer extends JSerializer {
      */
     @Override
     public Object fromBinaryJava(byte[] bytes, Class<?> manifest) {
-        return SerializationUtils.fromByteArray(bytes, manifest);
+        return SerializationUtils.fromByteArrayFst(bytes, manifest);
     }
 }

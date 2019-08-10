@@ -1,8 +1,8 @@
 package com.github.ddth.akka.scheduling;
 
-import java.util.Map;
-
 import com.github.ddth.akka.BaseMessage;
+
+import java.util.Map;
 
 /**
  * A message that encapsulates a "tick".
@@ -11,7 +11,6 @@ import com.github.ddth.akka.BaseMessage;
  * @since 0.1.0
  */
 public class TickMessage extends BaseMessage {
-
     private static final long serialVersionUID = "0.1.0".hashCode();
 
     public TickMessage() {
@@ -36,5 +35,4 @@ public class TickMessage extends BaseMessage {
     public TickMessage(String id, String replyToId, Map<String, Object> tags) {
         super(id, replyToId, tags);
     }
-
 }

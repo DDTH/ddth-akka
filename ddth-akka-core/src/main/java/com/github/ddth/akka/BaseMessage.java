@@ -1,15 +1,15 @@
 package com.github.ddth.akka;
 
+import com.github.ddth.akka.utils.AkkaUtils;
+import com.github.ddth.commons.utils.DateFormatUtils;
+import com.github.ddth.commons.utils.SerializationUtils;
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
+
 import java.io.Serializable;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-
-import org.apache.commons.lang3.builder.ToStringBuilder;
-import org.apache.commons.lang3.builder.ToStringStyle;
-
-import com.github.ddth.commons.utils.DateFormatUtils;
-import com.github.ddth.commons.utils.SerializationUtils;
 
 /**
  * Base class to implement Akka's messages.
@@ -18,7 +18,6 @@ import com.github.ddth.commons.utils.SerializationUtils;
  * @since 0.1.4
  */
 public class BaseMessage implements Serializable {
-
     private static final long serialVersionUID = "0.1.4".hashCode();
 
     /**
@@ -93,7 +92,7 @@ public class BaseMessage implements Serializable {
 
     /**
      * Get tick's timestamp as string.
-     * 
+     *
      * @param format
      * @return
      */
@@ -113,29 +112,27 @@ public class BaseMessage implements Serializable {
     public String toString() {
         ToStringBuilder tsb = new ToStringBuilder(this, ToStringStyle.SHORT_PREFIX_STYLE);
         tsb.append("id", id).append("reply-to", replyToId)
-                .append("timestamp", getTimestampStr(DateFormatUtils.DF_ISO8601))
-                .append("tags", tags);
+                .append("timestamp", getTimestampStr(DateFormatUtils.DF_ISO8601)).append("tags", tags);
         return tsb.toString();
     }
 
     /**
      * Serialize this message to bytes.
-     * 
+     *
      * @return
      */
     public byte[] toBytes() {
-        return SerializationUtils.toByteArray(this);
+        return SerializationUtils.toByteArrayFst(this);
     }
 
     /**
      * Deserialize a message from bytes.
-     * 
+     *
      * @param data
      * @param clazz
      * @return
      */
     public static <T extends BaseMessage> T fromBytes(byte[] data, Class<T> clazz) {
-        return SerializationUtils.fromByteArray(data, clazz);
+        return SerializationUtils.fromByteArrayFst(data, clazz);
     }
-
 }

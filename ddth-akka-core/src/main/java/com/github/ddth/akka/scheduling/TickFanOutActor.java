@@ -20,15 +20,13 @@ import scala.concurrent.duration.Duration;
  * Actor that sends "tick" messages to all subscribed workers every "tick".
  * 
  * <p>
- * After {@link ActorSystem} is built, create one instance of
- * {@link TickFanOutActor} to broadcast "tick" messages.
+ * After {@link ActorSystem} is built, create one instance of {@link TickFanOutActor} to broadcast "tick" messages.
  * </p>
  * 
  * @author Thanh Nguyen <btnguyen2k@gmail.com>
  * @since 0.1.0
  */
 public abstract class TickFanOutActor extends AbstractActor {
-
     /**
      * Marker message to signal {@link TickFanOutActor} that a "tick" has come.
      */
@@ -43,7 +41,7 @@ public abstract class TickFanOutActor extends AbstractActor {
     /**
      * According to Akka documentation
      * (https://doc.akka.io/docs/akka/2.5/scheduler.html), Akka scheduler is not
-     * designed for long-term scheduling. Hence, we renew the clock e very 24g,
+     * designed for long-term scheduling. Hence, we renew the clock every 24g,
      * for now.
      * 
      * @since 0.1.3

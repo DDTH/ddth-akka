@@ -1,24 +1,22 @@
 package com.github.ddth.akka.scheduling;
 
+import akka.actor.ActorSystem;
+import akka.actor.Scheduler;
+import com.github.ddth.akka.BaseActor;
+import com.github.ddth.akka.scheduling.annotation.Scheduling;
+import com.github.ddth.akka.utils.AkkaUtils;
+import com.github.ddth.dlock.IDLock;
+import com.github.ddth.dlock.LockResult;
+import com.github.ddth.dlock.impl.inmem.InmemDLock;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import scala.concurrent.duration.Duration;
+
 import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.github.ddth.akka.AkkaUtils;
-import com.github.ddth.akka.BaseActor;
-import com.github.ddth.akka.scheduling.annotation.Scheduling;
-import com.github.ddth.dlock.IDLock;
-import com.github.ddth.dlock.LockResult;
-import com.github.ddth.dlock.impl.inmem.InmemDLock;
-
-import akka.actor.ActorSystem;
-import akka.actor.Scheduler;
-import scala.concurrent.duration.Duration;
 
 /**
  * Base class to implement workers.
@@ -26,28 +24,18 @@ import scala.concurrent.duration.Duration;
  * <p>
  * Worker implementation:
  * <ul>
- * <li>Worker is scheduled to perform task. Scheduling configuration is in
- * Cron-like format (see {@link CronFormat} and {@link #getScheduling()}).</li>
- * <li>At every "tick", worker receives a "tick" message (see
- * {@link TickMessage}). The "tick" message carries a timestamp and a unique id.
- * This timestamp is checked against worker's scheduling configuration so
- * determine that worker's task should be fired off.</li>
- * <li>If worker's task is due, {@link #doJob(TickMessage)} is called.
- * {@link #doJob(TickMessage)} then calls {@link #getWorkerCoordinationPolicy()}
+ * <li>Worker is scheduled to perform task. Scheduling configuration is in Cron-like format (see {@link CronFormat} and {@link #getScheduling()}).</li>
+ * <li>At every "tick", worker receives a "tick" message (see {@link TickMessage}). The "tick" message carries a timestamp and a unique id.
+ * This timestamp is checked against worker's scheduling configuration to determine that worker's task should be fired off or not.</li>
+ * <li>If worker's task is due, {@link #onTick(TickMessage)} is called. {@link #onTick(TickMessage)} then calls {@link #getWorkerCoordinationPolicy()}
  * <ul>
- * <li>If {@link WorkerCoordinationPolicy#TAKE_ALL_TASKS} is returned,
- * {@link #doJobTakeAllTasks(TickMessage)} is called.</li>
- * <li>If {@link WorkerCoordinationPolicy#LOCAL_SINGLETON} is returned,
- * {@link #doJobLocalSingleton(TickMessage)} is called.</li>
- * <li>If {@link WorkerCoordinationPolicy#GLOBAL_SINGLETON} is returned,
- * {@link #doJobGlobalSingleton(TickMessage)} is called.</li>
+ * <li>If {@link WorkerCoordinationPolicy#TAKE_ALL_TASKS} is returned, {@link #doJobTakeAllTasks(TickMessage)} is called.</li>
+ * <li>If {@link WorkerCoordinationPolicy#LOCAL_SINGLETON} is returned, {@link #doJobLocalSingleton(TickMessage)} is called.</li>
+ * <li>If {@link WorkerCoordinationPolicy#GLOBAL_SINGLETON} is returned, {@link #doJobGlobalSingleton(TickMessage)} is called.</li>
  * </ul>
  * </li>
- * <li>{@link #doJobTakeAllTasks(TickMessage)},
- * {@link #doJobLocalSingleton(TickMessage)} and
- * {@link #doJobGlobalSingleton(TickMessage)} resolve worker coordinating stuff
- * and finally call {@link #doJob(String, TickMessage)}; sub-class override this
- * method to implement its business logic.</li>
+ * <li>{@link #doJobTakeAllTasks(TickMessage)}, {@link #doJobLocalSingleton(TickMessage)} and {@link #doJobGlobalSingleton(TickMessage)} resolve worker coordinating stuff
+ * and finally call {@link #doJob(String, TickMessage)}; sub-class override this method to implement its business logic.</li>
  * </ul>
  * </p>
  *
@@ -55,7 +43,6 @@ import scala.concurrent.duration.Duration;
  * @since 0.1.0
  */
 public abstract class BaseWorker extends BaseActor {
-
     /**
      * Special "tick" message to be sent only once when actor starts.
      */
@@ -64,43 +51,62 @@ public abstract class BaseWorker extends BaseActor {
     }
 
     private Logger LOGGER = LoggerFactory.getLogger(BaseWorker.class);
+
     public final static long DEFAULT_DLOCK_TIME_MS = 10000;
     private long dlockTimeMs = DEFAULT_DLOCK_TIME_MS;
     private IDLock dlock;
 
-    private final static Collection<Class<?>> channelSubscriptions = Collections
-            .singleton(TickMessage.class);
+    private final static Collection<Class<?>> channelSubscriptions = Collections.singleton(TickMessage.class);
 
     public BaseWorker() {
+        parseAnnotation();
         parseDlockTimeFromAnnotation();
     }
 
     public BaseWorker(IDLock dlock) {
         this.dlock = dlock;
+        parseAnnotation();
         parseDlockTimeFromAnnotation();
     }
 
     public BaseWorker(IDLock dlock, long dlockTimeMs) {
         this.dlock = dlock;
         this.dlockTimeMs = dlockTimeMs;
+        parseAnnotation();
+    }
+
+    /**
+     * @since 1.0.0
+     */
+    protected void parseAnnotation() {
+        Scheduling[] schedulings = getClass().getAnnotationsByType(Scheduling.class);
+        annotatedScheduling = schedulings != null && schedulings.length > 0 ? schedulings[0] : null;
+    }
+
+    /**
+     * @return
+     * @since 1.0.0
+     */
+    protected Scheduling getAnnotatedScheduling() {
+        return annotatedScheduling;
     }
 
     /**
      * @since 0.1.2
      */
     private void parseDlockTimeFromAnnotation() {
-        Scheduling[] schedulings = getClass().getAnnotationsByType(Scheduling.class);
-        if (schedulings != null && schedulings.length > 0) {
-            dlockTimeMs = schedulings[0].lockTime();
+        if (annotatedScheduling != null) {
+            dlockTimeMs = annotatedScheduling.lockTime();
         }
     }
 
     private Boolean runFirstTimeRegardlessScheduling;
+    private Scheduling annotatedScheduling;
 
     /**
-     * If {@code true}, the first "tick" will fire as soon as the actor starts,
+     * If {@code true}, the first "tick" will fire off task-executing as soon as the actor starts,
      * ignoring tick-matching check.
-     * 
+     *
      * <p>
      * If worker is annotated by {@link Scheduling}, this method returns value
      * of {@link Scheduling#runFirstTimeRegardlessScheduling()}. Otherwise this
@@ -111,23 +117,16 @@ public abstract class BaseWorker extends BaseActor {
      * @return
      */
     protected boolean isRunFirstTimeRegardlessScheduling() {
-        if (runFirstTimeRegardlessScheduling == null) {
-            Scheduling[] schedulings = getClass().getAnnotationsByType(Scheduling.class);
-            if (schedulings != null && schedulings.length > 0) {
-                runFirstTimeRegardlessScheduling = schedulings[0]
-                        .runFirstTimeRegardlessScheduling();
-            }
+        if (runFirstTimeRegardlessScheduling == null && annotatedScheduling != null) {
+            setRunFirstTimeRegardlessScheduling(annotatedScheduling.runFirstTimeRegardlessScheduling());
         }
-        return runFirstTimeRegardlessScheduling != null
-                ? runFirstTimeRegardlessScheduling.booleanValue() : false;
+        return runFirstTimeRegardlessScheduling != null ? runFirstTimeRegardlessScheduling.booleanValue() : false;
     }
 
     /**
-     * Setter for {@link #runFirstTimeRegardlessScheduling}.
-     * 
-     * If {@code true}, the first "tick" will fire as soon as the actor starts,
+     * If {@code true}, the first "tick" will fire off task-executing as soon as the actor starts,
      * ignoring tick-matching check.
-     * 
+     *
      * @param value
      * @return
      */
@@ -147,7 +146,7 @@ public abstract class BaseWorker extends BaseActor {
     /**
      * Create & Initialize a distributed-lock instance associated with this
      * worker.
-     * 
+     *
      * @return
      */
     protected IDLock createDLock() {
@@ -156,7 +155,7 @@ public abstract class BaseWorker extends BaseActor {
 
     /**
      * Acquire the lock for a duration.
-     * 
+     *
      * @param lockId
      * @param durationMs
      * @return
@@ -167,7 +166,7 @@ public abstract class BaseWorker extends BaseActor {
 
     /**
      * Acquire the lock for a duration.
-     * 
+     *
      * @param lockWaitWeight
      * @param lockId
      * @param durationMs
@@ -191,7 +190,7 @@ public abstract class BaseWorker extends BaseActor {
 
     /**
      * Get lock's duration.
-     * 
+     *
      * @return lock duration in milliseconds
      * @since 0.1.1
      */
@@ -201,9 +200,8 @@ public abstract class BaseWorker extends BaseActor {
 
     /**
      * Set lock's duration.
-     * 
-     * @param duration
-     *            lock duration in milliseconds
+     *
+     * @param duration lock duration in milliseconds
      * @return
      * @since 0.1.2
      */
@@ -213,8 +211,8 @@ public abstract class BaseWorker extends BaseActor {
     }
 
     /**
-     * Getter for {@link #dlock}.
-     * 
+     * Distributed-lock instance associated with this worker.
+     *
      * @return
      * @since 0.1.1
      */
@@ -223,8 +221,8 @@ public abstract class BaseWorker extends BaseActor {
     }
 
     /**
-     * Setter for {@link #dlock}.
-     * 
+     * Distributed-lock instance associated with this worker.
+     *
      * @param lock
      * @return
      * @since 0.1.2
@@ -257,8 +255,8 @@ public abstract class BaseWorker extends BaseActor {
     private CronFormat scheduling;
 
     /**
-     * Get worker's scheduling settings as {@link CronFormat}.
-     * 
+     * Worker's scheduling settings as {@link CronFormat}.
+     *
      * <p>
      * If worker is annotated by {@link Scheduling}, this method returns value
      * of {@link Scheduling#value()}. Otherwise this method throws
@@ -270,22 +268,19 @@ public abstract class BaseWorker extends BaseActor {
      */
     protected CronFormat getScheduling() {
         if (scheduling == null) {
-            Scheduling[] schedulings = getClass().getAnnotationsByType(Scheduling.class);
-            if (schedulings != null && schedulings.length > 0) {
-                scheduling = CronFormat.parse(schedulings[0].value());
-            }
+            scheduling = annotatedScheduling != null ? CronFormat.parse(annotatedScheduling.value()) : null;
         }
         if (scheduling != null) {
             return scheduling;
         }
         throw new IllegalStateException(
-                "No scheduling defined. Scheduling can be defined via annotation "
-                        + Scheduling.class + ", or overriding method getScheduling().");
+                "No scheduling defined. Scheduling can be defined via annotation " + Scheduling.class
+                        + ", or overriding method getScheduling().");
     }
 
     /**
-     * Setter for {@link #scheduling}.
-     * 
+     * Worker's scheduling settings as {@link CronFormat}.
+     *
      * @param scheduling
      * @return
      */
@@ -294,21 +289,11 @@ public abstract class BaseWorker extends BaseActor {
         return this;
     }
 
-    /**
-     * Sub-class implements this method to actually perform worker business
-     * logic.
-     *
-     * @param lockId
-     * @param tick
-     * @throws Exception
-     */
-    protected abstract void doJob(String lockId, TickMessage tick) throws Exception;
-
     private TickMessage lastTick;
 
     /**
      * Get last tick this worker had received.
-     * 
+     *
      * @return
      */
     protected TickMessage getLastTick() {
@@ -317,25 +302,23 @@ public abstract class BaseWorker extends BaseActor {
 
     /**
      * Save last tick this worker had received.
-     * 
+     *
      * @param tick
-     * @return
      */
-    protected boolean setLastTick(TickMessage tick) {
+    protected void setLastTick(TickMessage tick) {
         this.lastTick = tick;
-        return true;
     }
 
     /**
      * 30 seconds
      */
     protected final static long DEFAULT_LATE_TICK_THRESHOLD_MS = 30000L;
-    private long defaultLateTickThresholdMs = DEFAULT_LATE_TICK_THRESHOLD_MS;
+    private long lateTickThresholdMs = DEFAULT_LATE_TICK_THRESHOLD_MS;
 
     /**
      * Sometimes "tick" message comes late. This method returns the maximum
      * amount of time (in milliseconds) the "tick" message can come late.
-     * 
+     *
      * <p>
      * This method return {@link #DEFAULT_LATE_TICK_THRESHOLD_MS}. Sub-class may
      * override this method to customize its own business logic.
@@ -344,22 +327,18 @@ public abstract class BaseWorker extends BaseActor {
      * @return
      */
     protected long getLateTickThresholdMs() {
-        return defaultLateTickThresholdMs;
+        return lateTickThresholdMs;
     }
 
     /**
-     * Setter for {@link #defaultLateTickThresholdMs}.
-     * 
-     * <p>
-     * Sometimes "tick" message comes late. This method returns the maximum
+     * Sometimes "tick" message comes late. This method sets the maximum
      * amount of time (in milliseconds) the "tick" message can come late.
-     * </p>
-     * 
+     *
      * @param defaultLateTickThresholdMs
      * @return
      */
     public BaseWorker setLateTickThresholdMs(long defaultLateTickThresholdMs) {
-        this.defaultLateTickThresholdMs = defaultLateTickThresholdMs;
+        this.lateTickThresholdMs = defaultLateTickThresholdMs;
         return this;
     }
 
@@ -386,34 +365,32 @@ public abstract class BaseWorker extends BaseActor {
     private WorkerCoordinationPolicy workerCoordinationPolicy;
 
     /**
-     * If worker is annotated by {@link Scheduling}, this method returns value
+     * Specify how workers are coordinated.
+     *
+     * <p>If worker is annotated by {@link Scheduling}, this method returns value
      * of {@link Scheduling#workerCoordinationPolicy()}. Otherwise this method
      * returns {@link WorkerCoordinationPolicy#TAKE_ALL_TASKS}. Sub-class may
-     * override this method to customize its own business logic.
-     * 
+     * override this method to customize its own business logic.</p>
+     *
      * @return
      * @since 0.1.1
      */
     protected WorkerCoordinationPolicy getWorkerCoordinationPolicy() {
         if (workerCoordinationPolicy == null) {
-            Scheduling[] schedulings = getClass().getAnnotationsByType(Scheduling.class);
-            if (schedulings != null && schedulings.length > 0) {
-                workerCoordinationPolicy = schedulings[0].workerCoordinationPolicy();
-            }
+            workerCoordinationPolicy =
+                    annotatedScheduling != null ? annotatedScheduling.workerCoordinationPolicy() : null;
         }
-        return workerCoordinationPolicy != null ? workerCoordinationPolicy
-                : WorkerCoordinationPolicy.TAKE_ALL_TASKS;
+        return workerCoordinationPolicy != null ? workerCoordinationPolicy : WorkerCoordinationPolicy.TAKE_ALL_TASKS;
     }
 
     /**
-     * Setter for {@link #workerCoordinationPolicy}.
-     * 
+     * Specify how workers are coordinated.
+     *
      * @param workerCoordinationPolicy
      * @return
      * @since 0.1.2
      */
-    public BaseWorker setWorkerCoordinationPolicy(
-            WorkerCoordinationPolicy workerCoordinationPolicy) {
+    public BaseWorker setWorkerCoordinationPolicy(WorkerCoordinationPolicy workerCoordinationPolicy) {
         this.workerCoordinationPolicy = workerCoordinationPolicy;
         return this;
     }
@@ -421,26 +398,35 @@ public abstract class BaseWorker extends BaseActor {
     /**
      * Log a message explaining that the worker receives a task but is unable to
      * execute it because the worker is currently busy.
-     * 
+     *
      * @param tick
      * @param isGlobal
      * @since 0.1.1.2
      */
     protected void logBusy(TickMessage tick, boolean isGlobal) {
         if (isGlobal) {
-            LOGGER.warn("{" + getActorPath()
-                    + "} Received TICK message, but another instance is taking the task. " + tick);
+            LOGGER.warn(
+                    "{" + getActorPath() + "} Received TICK message, but another instance is taking the task. " + tick);
         } else {
             LOGGER.warn("{" + getActorPath() + "} Received TICK message, but I am busy! " + tick);
         }
     }
+
+    /**
+     * Sub-class implements this method to actually perform worker's business logic.
+     *
+     * @param lockId
+     * @param tick
+     * @throws Exception
+     */
+    protected abstract void doJob(String lockId, TickMessage tick) throws Exception;
 
     private Lock localLock = new ReentrantLock(true);
 
     /**
      * Execute job, local singleton mode, called by
      * {@link #onTick(TickMessage)}.
-     * 
+     *
      * @param tick
      * @since 0.1.1
      */
@@ -449,8 +435,7 @@ public abstract class BaseWorker extends BaseActor {
             try {
                 doJob(null, tick);
             } catch (Exception e) {
-                LOGGER.error("{" + getActorPath() + "} Error while doing job: " + e.getMessage(),
-                        e);
+                LOGGER.error("{" + getActorPath() + "} Error while doing job: " + e.getMessage(), e);
             } finally {
                 localLock.unlock();
             }
@@ -461,7 +446,7 @@ public abstract class BaseWorker extends BaseActor {
 
     /**
      * Generate a dlock-id. Must be unique globally.
-     * 
+     *
      * @return
      * @since 0.1.1.1
      */
@@ -473,56 +458,52 @@ public abstract class BaseWorker extends BaseActor {
 
     /**
      * If {@code true}, try to lock with fairness, if possible.
-     * 
+     *
      * @return
      * @since 0.1.2
      */
     protected boolean isLockFairness() {
-        if (lockFairness == null) {
-            Scheduling[] schedulings = getClass().getAnnotationsByType(Scheduling.class);
-            if (schedulings != null && schedulings.length > 0) {
-                lockFairness = schedulings[0].lockFairness();
-            }
+        if (lockFairness == null && annotatedScheduling != null) {
+            setLockFairness(annotatedScheduling.lockFairness());
         }
         return lockFairness != null ? lockFairness.booleanValue() : false;
     }
 
     /**
-     * Setter for {@link #lockFairness}.
-     * 
+     * If {@code true}, try to lock with fairness, if possible.
+     *
      * @param lockFairness
      * @return
      * @since 0.1.2
      */
     public BaseWorker setLockFairness(boolean lockFairness) {
-        this.lockFairness = lockFairness;
+        this.lockFairness = lockFairness ? Boolean.TRUE : Boolean.FALSE;
         return this;
     }
 
     private int dlockWait = 0;
 
     /**
-     * Execute job, global singleton mode, called by
-     * {@link #onTick(TickMessage)}.
-     * 
+     * Execute job, global singleton mode, called by {@link #onTick(TickMessage)}.
+     *
+     * <p>
      * Do not forget to release lock. However, delay a short period before
      * releasing lock to avoid the case that {@link #doJob(String, TickMessage)}
      * is do fast that worker instance on another node may receive the very same
      * tick-message and execute the same task.
-     * 
+     * </p>
+     *
      * @param tick
      * @since 0.1.1
      */
     protected void doJobGlobalSingleton(TickMessage tick) {
         String dlockId = generateDLockId();
-        if (isLockFairness() ? lock(dlockWait, dlockId, getLockDuration())
-                : lock(dlockId, getLockDuration())) {
+        if (isLockFairness() ? lock(dlockWait, dlockId, getLockDuration()) : lock(dlockId, getLockDuration())) {
             try {
                 dlockWait = 0;
                 doJob(dlockId, tick);
             } catch (Exception e) {
-                LOGGER.error("{" + getActorPath() + "} Error while doing job: " + e.getMessage(),
-                        e);
+                LOGGER.error("{" + getActorPath() + "} Error while doing job: " + e.getMessage(), e);
             } finally {
                 /**
                  * Do not forget to release lock. However, delay a short period
@@ -534,9 +515,11 @@ public abstract class BaseWorker extends BaseActor {
                 ActorSystem actorSystem = getActorSystem();
                 Scheduler scheduler = actorSystem != null ? actorSystem.scheduler() : null;
                 if (scheduler != null) {
-                    scheduler.scheduleOnce(Duration.create(1, TimeUnit.SECONDS),
-                            () -> unlock(dlockId),
+                    scheduler.scheduleOnce(Duration.create(1, TimeUnit.SECONDS), () -> unlock(dlockId),
                             getExecutionContextExecutor(AkkaUtils.AKKA_DISPATCHER_WORKERS));
+                } else {
+                    LOGGER.warn("Cannot obtain a Scheduler from ActorSystem.");
+                    unlock(dlockId);
                 }
             }
         } else {
@@ -547,7 +530,7 @@ public abstract class BaseWorker extends BaseActor {
 
     /**
      * Execute job, take-all-tasks mode, called by {@link #onTick(TickMessage)}.
-     * 
+     *
      * @param tick
      * @since 0.1.1
      */
@@ -579,18 +562,16 @@ public abstract class BaseWorker extends BaseActor {
 
     /**
      * This method is called when a message of type {@link TickMessage} arrives.
-     * 
+     *
      * @param tick
      */
     protected void onTick(TickMessage tick) {
         if (isTickMatched(tick) || tick instanceof FirstTimeTickMessage) {
             if (handleMessageAsync) {
-                getExecutionContextExecutor(AkkaUtils.AKKA_DISPATCHER_WORKERS)
-                        .execute(() -> _onTick(tick));
+                getExecutionContextExecutor(AkkaUtils.AKKA_DISPATCHER_WORKERS).execute(() -> _onTick(tick));
             } else {
                 _onTick(tick);
             }
         }
     }
-
 }

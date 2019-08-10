@@ -27,7 +27,7 @@ public enum WorkerCoordinationPolicy {
 
     private int value;
 
-    private WorkerCoordinationPolicy(int value) {
+    WorkerCoordinationPolicy(int value) {
         this.value = value;
     }
 

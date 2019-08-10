@@ -1,30 +1,24 @@
 package com.github.ddth.akka.cluster;
 
-import java.io.Serializable;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-
+import akka.cluster.ddata.ORMultiMap;
+import com.github.ddth.commons.utils.IdGenerator;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 
-import com.github.ddth.commons.utils.IdGenerator;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-
-import akka.cluster.ddata.ORMultiMap;
+import java.io.Serializable;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Utility class to work with cluster's distributed-data.
- * 
+ *
  * <p>
  * Cluster's distributed data model: {@link ORMultiMap}.
  * </p>
- * 
+ *
  * @author Thanh Nguyen <btnguyen2k@gmail.com>
  * @since 0.1.3
  */
@@ -34,7 +28,7 @@ public class DistributedDataUtils {
 
     /**
      * Retrieve distributed-data's get response from cache.
-     * 
+     *
      * @param id
      * @return
      */
@@ -44,7 +38,7 @@ public class DistributedDataUtils {
 
     /**
      * Put distributed-data's get response to cache.
-     * 
+     *
      * @param id
      * @param ddGetResult
      */
@@ -57,7 +51,7 @@ public class DistributedDataUtils {
     }
 
     /**
-     * A lock implemented using distributed-data.
+     * A lock implementation using distributed-data.
      */
     public static class DDLock implements Serializable {
         private static final long serialVersionUID = "v0.1.3".hashCode();
@@ -88,8 +82,7 @@ public class DistributedDataUtils {
          */
         @Override
         public boolean equals(Object obj) {
-            return obj == this
-                    || (obj instanceof DDLock && StringUtils.equals(lockId, ((DDLock) obj).lockId));
+            return obj == this || (obj instanceof DDLock && StringUtils.equals(lockId, ((DDLock) obj).lockId));
         }
 
         /**
@@ -221,8 +214,7 @@ public class DistributedDataUtils {
         @SuppressWarnings("unchecked")
         public <T> T singleValueAs(Class<T> clazz) {
             Object singleValue = singleValue();
-            return singleValue != null && clazz.isAssignableFrom(singleValue.getClass())
-                    ? (T) singleValue : null;
+            return singleValue != null && clazz.isAssignableFrom(singleValue.getClass()) ? (T) singleValue : null;
         }
 
         public boolean valueContains(Object obj) {

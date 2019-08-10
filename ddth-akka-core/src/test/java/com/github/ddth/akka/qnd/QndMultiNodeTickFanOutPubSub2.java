@@ -1,11 +1,8 @@
 package com.github.ddth.akka.qnd;
 
-import java.util.Date;
-import java.util.Random;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.actor.Props;
 import com.github.ddth.akka.AkkaUtils;
 import com.github.ddth.akka.scheduling.BaseWorker;
 import com.github.ddth.akka.scheduling.TickMessage;
@@ -16,13 +13,13 @@ import com.github.ddth.commons.utils.DateFormatUtils;
 import com.github.ddth.dlock.IDLock;
 import com.github.ddth.dlock.impl.redis.RedisDLockFactory;
 import com.github.ddth.pubsub.impl.universal.idint.UniversalRedisPubSubHub;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.Props;
+import java.util.Date;
+import java.util.Random;
 
 public class QndMultiNodeTickFanOutPubSub2 {
-
     static {
         System.setProperty("org.slf4j.simpleLogger.logFile", "System.out");
         System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "debug");
@@ -47,12 +44,12 @@ public class QndMultiNodeTickFanOutPubSub2 {
         @Override
         protected void doJob(String lockId, TickMessage tick) throws Exception {
             Date now = new Date();
-            LOGGER.info("{" + self().path() + "}: " + tick.getId() + " / "
-                    + DateFormatUtils.toString(now, DateFormatUtils.DF_ISO8601) + " / "
-                    + DateFormatUtils.toString(tick.getTimestamp(), DateFormatUtils.DF_ISO8601)
-                    + " / " + (now.getTime() - tick.getTimestamp().getTime()));
+            LOGGER.info("{" + self().path() + "}: Tick " + tick.getId() + " / Now " + DateFormatUtils
+                    .toString(now, DateFormatUtils.DF_ISO8601) + " / TickTime " + DateFormatUtils
+                    .toString(tick.getTimestamp(), DateFormatUtils.DF_ISO8601) + " / Lag " + (now.getTime() - tick
+                    .getTimestamp().getTime()));
             long sleepTime = 2300 + RAND.nextInt(1000);
-            LOGGER.info("\t{" + self().path() + "} sleepping for " + sleepTime);
+            LOGGER.info("\t{" + self().path() + "} sleeping for " + sleepTime);
             Thread.sleep(sleepTime);
             unlock(lockId);
         }
@@ -71,12 +68,12 @@ public class QndMultiNodeTickFanOutPubSub2 {
         @Override
         protected void doJob(String lockId, TickMessage tick) throws Exception {
             Date now = new Date();
-            LOGGER.info("{" + self().path() + "}: " + tick.getId() + " / "
-                    + DateFormatUtils.toString(now, DateFormatUtils.DF_ISO8601) + " / "
-                    + DateFormatUtils.toString(tick.getTimestamp(), DateFormatUtils.DF_ISO8601)
-                    + " / " + (now.getTime() - tick.getTimestamp().getTime()));
+            LOGGER.info("{" + self().path() + "}: Tick " + tick.getId() + " / Now " + DateFormatUtils
+                    .toString(now, DateFormatUtils.DF_ISO8601) + " / TickTime " + DateFormatUtils
+                    .toString(tick.getTimestamp(), DateFormatUtils.DF_ISO8601) + " / Lag " + (now.getTime() - tick
+                    .getTimestamp().getTime()));
             long sleepTime = 2500 + RAND.nextInt(1000);
-            LOGGER.info("\t{" + self().path() + "} sleepping for " + sleepTime);
+            LOGGER.info("\t{" + self().path() + "} sleeping for " + sleepTime);
             Thread.sleep(sleepTime);
             unlock(lockId);
         }
@@ -90,27 +87,26 @@ public class QndMultiNodeTickFanOutPubSub2 {
                     .setLockNamePrefix("dlock-").init();
 
             try (UniversalRedisPubSubHub pubSub = new UniversalRedisPubSubHub()) {
-                pubSub.setRedisHostAndPort(redisHostsAndPorts).setRedisPassword(redisPassword)
-                        .init();
+                pubSub.setRedisHostAndPort(redisHostsAndPorts).setRedisPassword(redisPassword).init();
 
                 ActorSystem actorSystem = AkkaUtils.createActorSystem("my-actor-system");
                 try {
                     System.out.println("Actor system: " + actorSystem);
 
                     IDLock dlock1 = dlockFactory.createLock("worker");
-                    System.out.println("Actor: " + actorSystem
-                            .actorOf(Props.create(MyWorker1.class, dlock1), "worker1"));
+                    System.out.println(
+                            "Worker1: " + actorSystem.actorOf(Props.create(MyWorker1.class, dlock1), "worker1"));
 
                     IDLock dlock2 = dlockFactory.createLock("worker");
-                    System.out.println("Actor: " + actorSystem
-                            .actorOf(Props.create(MyWorker2.class, dlock2), "worker2"));
+                    System.out.println(
+                            "Worker2: " + actorSystem.actorOf(Props.create(MyWorker2.class, dlock2), "worker2"));
 
                     IDLock dlock = dlockFactory.createLock("demo");
                     System.out.println("DLock: " + dlock);
 
                     ActorRef tickFanOut = MultiNodePubSubBasedTickFanOutActor
                             .newInstance(actorSystem, dlock, pubSub, "pubSubChannel");
-                    System.out.println(tickFanOut);
+                    System.out.println("Tick fan-out: " + tickFanOut);
 
                     Thread.sleep(60000);
 

@@ -1,5 +1,22 @@
 package com.github.ddth.akka.cluster;
 
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.cluster.Cluster;
+import akka.cluster.ddata.*;
+import akka.cluster.ddata.Replicator.ReadConsistency;
+import akka.cluster.pubsub.DistributedPubSub;
+import akka.cluster.pubsub.DistributedPubSubMediator;
+import com.github.ddth.akka.BaseActor;
+import com.github.ddth.akka.cluster.DistributedDataUtils.DDGetResult;
+import com.github.ddth.akka.cluster.DistributedDataUtils.DDLock;
+import com.github.ddth.akka.cluster.DistributedDataUtils.DDTags;
+import com.github.ddth.akka.utils.AkkaUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import scala.concurrent.duration.Duration;
+
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;
@@ -7,45 +24,18 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
-import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.github.ddth.akka.BaseActor;
-import com.github.ddth.akka.cluster.DistributedDataUtils.DDGetResult;
-import com.github.ddth.akka.cluster.DistributedDataUtils.DDLock;
-import com.github.ddth.akka.cluster.DistributedDataUtils.DDTags;
-import com.github.ddth.commons.utils.IdGenerator;
-
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.cluster.Cluster;
-import akka.cluster.ddata.DistributedData;
-import akka.cluster.ddata.Key;
-import akka.cluster.ddata.ORMultiMap;
-import akka.cluster.ddata.ORMultiMapKey;
-import akka.cluster.ddata.Replicator;
-import akka.cluster.ddata.Replicator.ReadConsistency;
-import akka.cluster.pubsub.DistributedPubSub;
-import akka.cluster.pubsub.DistributedPubSubMediator;
-import scala.concurrent.duration.Duration;
-
 /**
  * Base class to implement Akka cluster actors.
  *
  * <p>
- * Akka actor vs cluster actor:
+ * Akka actor vs cluster-actor:
  * <p>
  *
  * <ul>
- * <li>Management: actors are created & managed by local {@link ActorSystem},
- * cluster actors are created and managed by clustered {@link ActorSystem}.</li>
- * <li>Deployment: actors will be deployed on all nodes, cluster actors can be
- * deployed on a selected group of nodes (nodes with specified roles).</li>
- * <li>Pub-sub: actors subscribe to event channels, cluster actors subscribe to
- * cluster topic.</li>
- * <li>Coordination: actors are independent, cluster nodes can share data via
- * {@link DistributedData}.</li>
+ * <li>Management: actors are created & managed by local-{@link ActorSystem}, cluster-actors are created and managed by clustered-{@link ActorSystem}.</li>
+ * <li>Deployment: actors will be deployed on all nodes, cluster-actors can be deployed on a selected group of nodes (nodes with specified roles).</li>
+ * <li>Pub-sub: actors subscribe to event-channels, cluster-actors subscribe to cluster-topics.</li>
+ * <li>Coordination: actors are independent, cluster-nodes can share data via {@link DistributedData}.</li>
  * </ul>
  *
  * @author Thanh Nguyen <btnguyen2k@gmail.com>
@@ -54,9 +44,9 @@ import scala.concurrent.duration.Duration;
 public class BaseClusterActor extends BaseActor {
     private final Logger LOGGER = LoggerFactory.getLogger(BaseClusterActor.class);
 
-    protected ActorRef distributedPubSubMediator = DistributedPubSub.get(getContext().system())
-            .mediator();
+    protected ActorRef distributedPubSubMediator = DistributedPubSub.get(getContext().system()).mediator();
 
+    protected SelfUniqueAddress selfUniqueAddress = DistributedData.get(getContext().getSystem()).selfUniqueAddress();
     protected ActorRef replicator = DistributedData.get(getContext().getSystem()).replicator();
     protected Key<ORMultiMap<String, Object>> dataKey = ORMultiMapKey.create(getDdKeyId());
 
@@ -72,17 +62,37 @@ public class BaseClusterActor extends BaseActor {
 
     protected Cluster cluster = Cluster.get(getContext().system());
 
+    /**
+     * Distributed pub-sub mediator used to send messages to cluster's message groups.
+     *
+     * @return
+     */
     protected ActorRef getDistributedPubSubMediator() {
         return distributedPubSubMediator;
     }
 
+    /**
+     * Self-unique-address used for distributed-data operations.
+     *
+     * @return
+     * @since 1.0.0
+     */
+    protected SelfUniqueAddress getSelfUniqueAddress() {
+        return selfUniqueAddress;
+    }
+
+    /**
+     * Distributed data replicator used for CRUD operations on cluster's distributed data.
+     *
+     * @return
+     */
     protected ActorRef getReplicator() {
         return replicator;
     }
 
     /**
      * Get {@link Cluster} instance associated with this actor.
-     * 
+     *
      * @return
      */
     protected Cluster getCluster() {
@@ -91,19 +101,18 @@ public class BaseClusterActor extends BaseActor {
 
     /**
      * Id for distributed-data key. Default value: actor's name.
-     * 
+     *
      * @return
      */
     protected String getDdKeyId() {
         return getActorPath().name();
     }
 
-    private static boolean containsOrExpires(scala.collection.Set<Object> set,
-            DistributedDataUtils.DDLock lock) {
+    private static boolean containsOrExpires(scala.collection.Set<Object> set, DistributedDataUtils.DDLock lock) {
         if (set.contains(lock)) {
             return true;
         }
-        for (scala.collection.Iterator<Object> it = set.iterator(); it.hasNext();) {
+        for (scala.collection.Iterator<Object> it = set.iterator(); it.hasNext(); ) {
             Object obj = it.next();
             if (obj instanceof DistributedDataUtils.DDLock) {
                 // current lock expired
@@ -131,22 +140,16 @@ public class BaseClusterActor extends BaseActor {
      * @param lockId
      * @return
      */
-    protected boolean ddLock(String key, String lockId, long lockTimeout,
-            TimeUnit lockTimeoutUnit) {
+    protected boolean ddLock(String key, String lockId, long lockTimeout, TimeUnit lockTimeoutUnit) {
         DDLock lock = new DDLock(lockId, lockTimeout, lockTimeoutUnit);
-        DDTags tags = new DDTags(IdGenerator.getInstance().generateId64(), key);
-        Replicator.Update<ORMultiMap<String, Object>> update = new Replicator.Update<>(dataKey,
-                ORMultiMap.create(), lockWriteConsistency, Optional.of(tags), curr -> {
-                    if (!curr.contains(key) || containsOrExpires(curr.get(key).get(), lock)) {
-                        // if lock does not exist or contains myself, or current
-                        // lock expires
-                        return curr.put(getCluster(), key, Collections.singleton(lock));
-                    }
-                    return curr;
-                });
+        DDTags tags = new DDTags(AkkaUtils.nextIdLong(), key);
+        Replicator.Update<ORMultiMap<String, Object>> update = new Replicator.Update<>(dataKey, ORMultiMap.create(),
+                lockWriteConsistency, Optional.of(tags),
+                curr -> !curr.contains(key) || containsOrExpires(curr.get(key).get(), lock) ?
+                        curr.put(getSelfUniqueAddress(), key, Collections.singleton(lock)) :
+                        curr);
         replicator.tell(update, self());
-        DDGetResult getResult = ddGet(tags, lockReadConsistency, defaultDDGetTimeoutMs,
-                TimeUnit.MILLISECONDS);
+        DDGetResult getResult = ddGet(tags, lockReadConsistency, defaultDDGetTimeoutMs, TimeUnit.MILLISECONDS);
         boolean result = getResult != null && getResult.valueContains(lock);
         return result;
     }
@@ -165,14 +168,14 @@ public class BaseClusterActor extends BaseActor {
      */
     protected boolean ddUnlock(String key, String lockId) {
         DDLock lock = new DDLock(lockId);
-        DDTags tags = new DDTags(IdGenerator.getInstance().generateId64(), key);
-        Replicator.Update<ORMultiMap<String, Object>> update = new Replicator.Update<>(dataKey,
-                ORMultiMap.create(), lockWriteConsistency, Optional.of(tags),
-                curr -> curr.contains(key) && containsOrExpires(curr.get(key).get(), lock)
-                        ? curr.remove(getCluster(), key) : curr);
+        DDTags tags = new DDTags(AkkaUtils.nextIdLong(), key);
+        Replicator.Update<ORMultiMap<String, Object>> update = new Replicator.Update<>(dataKey, ORMultiMap.create(),
+                lockWriteConsistency, Optional.of(tags),
+                curr -> curr.contains(key) && containsOrExpires(curr.get(key).get(), lock) ?
+                        curr.remove(getSelfUniqueAddress(), key) :
+                        curr);
         replicator.tell(update, self());
-        DDGetResult getResult = ddGet(tags, lockReadConsistency, defaultDDGetTimeoutMs,
-                TimeUnit.MILLISECONDS);
+        DDGetResult getResult = ddGet(tags, lockReadConsistency, defaultDDGetTimeoutMs, TimeUnit.MILLISECONDS);
         boolean result = getResult != null && (getResult.isNotFound() || getResult.isNullOrEmpty());
         return result;
     }
@@ -183,10 +186,8 @@ public class BaseClusterActor extends BaseActor {
      * @param tags
      */
     protected void ddDelete(DDTags tags) {
-        replicator.tell(
-                new Replicator.Update<>(dataKey, ORMultiMap.create(), writeConsistency,
-                        Optional.of(tags), curr -> curr.remove(getCluster(), tags.getKey())),
-                self());
+        replicator.tell(new Replicator.Update<>(dataKey, ORMultiMap.create(), writeConsistency, Optional.of(tags),
+                curr -> curr.remove(getSelfUniqueAddress(), tags.getKey())), self());
     }
 
     /**
@@ -195,7 +196,7 @@ public class BaseClusterActor extends BaseActor {
      * @param key
      */
     protected void ddDelete(String key) {
-        ddDelete(new DDTags(IdGenerator.getInstance().generateId64(), key));
+        ddDelete(new DDTags(AkkaUtils.nextIdLong(), key));
     }
 
     /**
@@ -205,11 +206,8 @@ public class BaseClusterActor extends BaseActor {
      * @param value
      */
     protected void ddSet(DDTags tags, Object value) {
-        replicator.tell(
-                new Replicator.Update<>(dataKey,
-                        ORMultiMap.create(), writeConsistency, Optional.of(tags), curr -> curr
-                                .put(getCluster(), tags.getKey(), Collections.singleton(value))),
-                self());
+        replicator.tell(new Replicator.Update<>(dataKey, ORMultiMap.create(), writeConsistency, Optional.of(tags),
+                curr -> curr.put(getSelfUniqueAddress(), tags.getKey(), Collections.singleton(value))), self());
     }
 
     /**
@@ -219,7 +217,7 @@ public class BaseClusterActor extends BaseActor {
      * @param value
      */
     protected void ddSet(String key, Object value) {
-        ddSet(new DDTags(IdGenerator.getInstance().generateId64(), key), value);
+        ddSet(new DDTags(AkkaUtils.nextIdLong(), key), value);
     }
 
     /**
@@ -254,10 +252,8 @@ public class BaseClusterActor extends BaseActor {
      * @return
      * @since template-v2.6.r7
      */
-    protected DDGetResult ddGet(String key, long timeout, TimeUnit timeoutUnit,
-            ReadConsistency readConsistency) {
-        return ddGet(new DDTags(IdGenerator.getInstance().generateId64(), key), readConsistency,
-                timeout, timeoutUnit);
+    protected DDGetResult ddGet(String key, long timeout, TimeUnit timeoutUnit, ReadConsistency readConsistency) {
+        return ddGet(new DDTags(AkkaUtils.nextIdLong(), key), readConsistency, timeout, timeoutUnit);
     }
 
     /**
@@ -269,8 +265,7 @@ public class BaseClusterActor extends BaseActor {
      * @param timeoutUnit
      * @return
      */
-    protected DDGetResult ddGet(DDTags tags, ReadConsistency readConsistency, long timeout,
-            TimeUnit timeoutUnit) {
+    protected DDGetResult ddGet(DDTags tags, ReadConsistency readConsistency, long timeout, TimeUnit timeoutUnit) {
         replicator.tell(new Replicator.Get<>(dataKey, readConsistency, Optional.of(tags)), self());
         long expiry = System.currentTimeMillis() + timeoutUnit.toMillis(timeout);
         DDGetResult result = DistributedDataUtils.getResponse(tags.getId());
@@ -322,17 +317,15 @@ public class BaseClusterActor extends BaseActor {
     protected void initActor() throws Exception {
         Set<String> selfRoles = cluster.getSelfRoles();
         Set<String> deployRoles = getDeployRoles();
-        if (deployRoles == null || deployRoles.isEmpty()
-                || deployRoles.contains(ClusterMemberUtils.ROLE_ALL)
+        if (deployRoles == null || deployRoles.isEmpty() || deployRoles.contains(ClusterMemberUtils.ROLE_ALL)
                 || !Collections.disjoint(deployRoles, selfRoles)) {
             super.initActor();
 
-            addMessageHandler(DistributedPubSubMediator.SubscribeAck.class,
-                    ack -> LOGGER.info("{" + getActorPath().name()
-                            + "} subscribed successfully to [" + ack.subscribe() + "]."));
-            addMessageHandler(DistributedPubSubMediator.UnsubscribeAck.class,
-                    ack -> LOGGER.info("{" + getActorPath().name()
-                            + "} unsubscribed successfully from [" + ack.unsubscribe() + "]."));
+            addMessageHandler(DistributedPubSubMediator.SubscribeAck.class, ack -> LOGGER
+                    .info("{" + getActorPath().name() + "} subscribed successfully to [" + ack.subscribe() + "]."));
+            addMessageHandler(DistributedPubSubMediator.UnsubscribeAck.class, ack -> LOGGER
+                    .info("{" + getActorPath().name() + "} unsubscribed successfully from [" + ack.unsubscribe()
+                            + "]."));
 
             // /*
             // * distributed-data delete
@@ -378,8 +371,9 @@ public class BaseClusterActor extends BaseActor {
                 Object _tags = msg.getRequest().orElse(null);
                 DDTags tags = _tags instanceof DDTags ? (DDTags) _tags : null;
                 if (tags != null) {
-                    ORMultiMap<String, Object> data = msg.dataValue() instanceof ORMultiMap
-                            ? (ORMultiMap<String, Object>) msg.dataValue() : ORMultiMap.create();
+                    ORMultiMap<String, Object> data = msg.dataValue() instanceof ORMultiMap ?
+                            (ORMultiMap<String, Object>) msg.dataValue() :
+                            ORMultiMap.create();
                     Set<Object> value = data.getEntries().get(tags.getKey());
                     DistributedDataUtils.setResponse(tags.getId(), DDGetResult.ok(tags, value));
                 }
@@ -387,19 +381,17 @@ public class BaseClusterActor extends BaseActor {
 
             Collection<String[]> topicSubscriptions = topicSubscriptions();
             if (topicSubscriptions != null) {
-                topicSubscriptions.forEach((topicSub) -> {
+                topicSubscriptions.forEach(topicSub -> {
                     String topic = topicSub != null && topicSub.length > 0 ? topicSub[0] : null;
                     String groupId = topicSub != null && topicSub.length > 1 ? topicSub[1] : null;
                     subscribeToTopic(topic, groupId);
                 });
             }
         } else {
-            LOGGER.info("Actor {" + getActorPath().name()
-                    + "} is configured to start on node with roles " + deployRoles
+            LOGGER.info("Actor {" + getActorPath().name() + "} is configured to start on node with roles " + deployRoles
                     + " but this node " + cluster.selfAddress() + " has roles " + selfRoles);
             getContext().stop(self());
         }
-
     }
 
     /**
@@ -410,7 +402,7 @@ public class BaseClusterActor extends BaseActor {
         try {
             Collection<String[]> topicSubscriptions = topicSubscriptions();
             if (topicSubscriptions != null) {
-                topicSubscriptions.forEach((topicSub) -> {
+                topicSubscriptions.forEach(topicSub -> {
                     String topic = topicSub != null && topicSub.length > 0 ? topicSub[0] : null;
                     String groupId = topicSub != null && topicSub.length > 1 ? topicSub[1] : null;
                     unsubscribeFromTopic(topic, groupId);
@@ -444,9 +436,8 @@ public class BaseClusterActor extends BaseActor {
      * @param sendOneMessageToEachGroup
      */
     protected void publishToTopic(Object message, String topic, boolean sendOneMessageToEachGroup) {
-        distributedPubSubMediator.tell(
-                new DistributedPubSubMediator.Publish(topic, message, sendOneMessageToEachGroup),
-                self());
+        distributedPubSubMediator
+                .tell(new DistributedPubSubMediator.Publish(topic, message, sendOneMessageToEachGroup), self());
     }
 
     /**
@@ -467,15 +458,12 @@ public class BaseClusterActor extends BaseActor {
     protected void subscribeToTopic(String topic, String groupId) {
         if (!StringUtils.isBlank(topic)) {
             if (StringUtils.isBlank(groupId)) {
-                distributedPubSubMediator
-                        .tell(new DistributedPubSubMediator.Subscribe(topic, self()), self());
-                LOGGER.info(
-                        "{" + getActorPath().name() + "} is subscribing to topic [" + topic + "].");
+                distributedPubSubMediator.tell(new DistributedPubSubMediator.Subscribe(topic, self()), self());
+                LOGGER.info("{" + getActorPath().name() + "} is subscribing to topic [" + topic + "].");
             } else {
-                distributedPubSubMediator.tell(
-                        new DistributedPubSubMediator.Subscribe(topic, groupId, self()), self());
-                LOGGER.info("{" + getActorPath().name() + "} is subscribing to topic [" + topic
-                        + "] as [" + groupId + "].");
+                distributedPubSubMediator.tell(new DistributedPubSubMediator.Subscribe(topic, groupId, self()), self());
+                LOGGER.info("{" + getActorPath().name() + "} is subscribing to topic [" + topic + "] as [" + groupId
+                        + "].");
             }
         }
     }
@@ -497,15 +485,12 @@ public class BaseClusterActor extends BaseActor {
      */
     protected void unsubscribeFromTopic(String topic, String groupId) {
         if (StringUtils.isBlank(groupId)) {
-            distributedPubSubMediator.tell(new DistributedPubSubMediator.Unsubscribe(topic, self()),
-                    self());
-            LOGGER.info(
-                    "{" + getActorPath().name() + "} is unsubscribing from topic [" + topic + "].");
+            distributedPubSubMediator.tell(new DistributedPubSubMediator.Unsubscribe(topic, self()), self());
+            LOGGER.info("{" + getActorPath().name() + "} is unsubscribing from topic [" + topic + "].");
         } else {
-            distributedPubSubMediator.tell(
-                    new DistributedPubSubMediator.Unsubscribe(topic, groupId, self()), self());
-            LOGGER.info("{" + getActorPath().name() + "} is unsubscribing from topic [" + topic
-                    + "] as [" + groupId + "].");
+            distributedPubSubMediator.tell(new DistributedPubSubMediator.Unsubscribe(topic, groupId, self()), self());
+            LOGGER.info("{" + getActorPath().name() + "} is unsubscribing from topic [" + topic + "] as [" + groupId
+                    + "].");
         }
     }
 }

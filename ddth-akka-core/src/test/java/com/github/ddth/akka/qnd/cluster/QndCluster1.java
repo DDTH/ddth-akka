@@ -1,11 +1,6 @@
 package com.github.ddth.akka.qnd.cluster;
 
-import java.util.Date;
-
-import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import akka.actor.ActorSystem;
 import com.github.ddth.akka.cluster.DistributedDataUtils.DDGetResult;
 import com.github.ddth.akka.cluster.MasterActor;
 import com.github.ddth.akka.cluster.scheduling.BaseClusterWorker;
@@ -14,11 +9,16 @@ import com.github.ddth.akka.scheduling.TickMessage;
 import com.github.ddth.akka.scheduling.WorkerCoordinationPolicy;
 import com.github.ddth.akka.scheduling.annotation.Scheduling;
 import com.github.ddth.commons.utils.DateFormatUtils;
+import com.github.ddth.commons.utils.TypesafeConfigUtils;
+import com.typesafe.config.Config;
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import akka.actor.ActorSystem;
+import java.io.File;
+import java.util.Date;
 
 public class QndCluster1 extends BaseQnd {
-
     private static Logger LOGGER = LoggerFactory.getLogger(QndCluster1.class);
 
     @Scheduling(value = "*/3 * *", workerCoordinationPolicy = WorkerCoordinationPolicy.GLOBAL_SINGLETON, lockTime = 10000)
@@ -51,8 +51,7 @@ public class QndCluster1 extends BaseQnd {
                 ddSet("key", value);
                 LOGGER.warn("\t{" + getActorPath().name() + "} put: " + value);
             } finally {
-                if (!StringUtils.isBlank(lockId)
-                        && System.currentTimeMillis() - now.getTime() > 1000) {
+                if (!StringUtils.isBlank(lockId) && System.currentTimeMillis() - now.getTime() > 1000) {
                     ddUnlock(getLockKey(), lockId);
                 }
             }
@@ -88,8 +87,7 @@ public class QndCluster1 extends BaseQnd {
                 DDGetResult result = ddGet("key");
                 LOGGER.warn("\t{" + getActorPath().name() + "} get: " + result);
             } finally {
-                if (!StringUtils.isBlank(lockId)
-                        && System.currentTimeMillis() - now.getTime() > 1000) {
+                if (!StringUtils.isBlank(lockId) && System.currentTimeMillis() - now.getTime() > 1000) {
                     ddUnlock(getLockKey(), lockId);
                 }
             }
@@ -97,9 +95,11 @@ public class QndCluster1 extends BaseQnd {
     }
 
     public static void main(String[] args) throws Exception {
-        ActorSystem actorSystem = startActorSystem(
-                "com/github/ddth/akka/qnd/cluster/akka-cluster-node1.conf", MasterActor.class,
-                MyWorker1.class, MyWorker2.class, ClusterTickFanOutActor.class);
+        File configFile = new File(
+                "ddth-akka-core/src/test/java/com/github/ddth/akka/qnd/cluster/akka-cluster-node1.conf");
+        Config config = TypesafeConfigUtils.loadConfig(configFile, true);
+        ActorSystem actorSystem = startActorSystem(config, MasterActor.class, MyWorker1.class, MyWorker2.class,
+                ClusterTickFanOutActor.class);
         Thread.sleep(30000);
         actorSystem.terminate();
     }

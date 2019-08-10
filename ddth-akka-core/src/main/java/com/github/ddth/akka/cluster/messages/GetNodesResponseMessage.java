@@ -1,22 +1,19 @@
 package com.github.ddth.akka.cluster.messages;
 
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Set;
-import java.util.TreeSet;
-
+import akka.cluster.Member;
+import com.github.ddth.akka.BaseMessage;
+import com.github.ddth.akka.cluster.MasterActor;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 
-import com.github.ddth.akka.BaseMessage;
-import com.github.ddth.akka.cluster.MasterActor;
-
-import akka.cluster.Member;
+import java.util.Collections;
+import java.util.Set;
+import java.util.TreeSet;
 
 /**
  * {@link MasterActor} sends back this message in reply to
  * {@link GetNodesMessage} message.
- * 
+ *
  * @author Thanh Nguyen <btnguyen2k@gmail.com>
  * @since 0.1.4
  */
@@ -29,17 +26,7 @@ public class GetNodesResponseMessage extends BaseMessage {
     public GetNodesResponseMessage(String replyToId, String role, Set<Member> nodes) {
         setReplyToId(replyToId);
         this.role = role;
-        Set<Member> temp = new TreeSet<Member>(new Comparator<Member>() {
-            public int compare(Member a, Member b) {
-                if (a.isOlderThan(b)) {
-                    return -1;
-                } else if (b.isOlderThan(a)) {
-                    return 1;
-                } else {
-                    return 0;
-                }
-            }
-        });
+        Set<Member> temp = new TreeSet<>((a, b) -> a.isOlderThan(b) ? -1 : (b.isOlderThan(a) ? 1 : 0));
         if (nodes != null) {
             temp.addAll(nodes);
         }

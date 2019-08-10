@@ -1,41 +1,36 @@
 package com.github.ddth.akka.scheduling;
 
+import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.StringUtils;
+
 import java.util.Calendar;
 import java.util.Date;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.commons.lang3.ArrayUtils;
-import org.apache.commons.lang3.StringUtils;
-
 /**
- * Cron-like format for worker to match against a "tick".
+ * Cron-like format for workers to match against a "tick".
  *
  * <p>
- * Format: {@code <Second (0-59)> <Minute (0-59)>
- * <Hour (0-23)> <DoM (1-31)> <MoY (1-12)> <DoW (1:Sunday-7:Saturday)>}
+ * Format: {@code <Second (0-59)> <Minute (0-59)> <Hour (0-23)> <DoM (1-31)> <MoY (1-12)> <DoW (1:Sunday-7:Saturday)>}
  * </p>
  * <p>
- * For {@code Month_of_Year} and {@code Day_of_Week} fields, full names (
- * {@code "January,February,...,December"} or
- * {@code "Sunday,Monday,Tuesday...,Saturday"}) or abbreviations (
- * {@code "Jan,Feb,...,Dec"} or {@code "Sun,Mon,Tue,...,Sat"}) can be used
- * instead of numeric values.
+ * For {@code Month_of_Year} and {@code Day_of_Week} fields, full names ({@code "January,February,...,December"}, {@code "Sunday,Monday,Tuesday...,Saturday"})
+ * or abbreviations ({@code "Jan,Feb,...,Dec"}, {@code "Sun,Mon,Tue,...,Sat"}) can be used instead of numeric values.
  * </p>
- * 
+ *
  * @author Thanh Nguyen <btnguyen2k@gmail.com>
  * @since 0.1.0
  */
 public class CronFormat {
-
     private static class SchedulePart {
-        private final static Pattern PATTERN_TICK = Pattern.compile("^\\*\\/(\\d+)$");
-        private final static Pattern PATTERN_RANGE = Pattern.compile("^(\\d+)-(\\d+)$");
-        private final static Pattern PATTERN_RANGE_NAME = Pattern.compile("^([A-Z]+)-([A-Z]+)$",
-                Pattern.CASE_INSENSITIVE);
-        private final static Pattern PATTERN_EXACT = Pattern.compile("^(\\d+)$");
-        private final static Pattern PATTERN_EXACT_NAME = Pattern.compile("^([A-Z]+)$",
-                Pattern.CASE_INSENSITIVE);
+        private final static Pattern PATTERN_TICK = Pattern.compile("^\\*\\/(\\d+)$"); //e.g */3
+        private final static Pattern PATTERN_RANGE = Pattern.compile("^(\\d+)-(\\d+)$"); //e.g 0-7
+        private final static Pattern PATTERN_RANGE_NAME = Pattern
+                .compile("^([A-Z]+)-([A-Z]+)$", Pattern.CASE_INSENSITIVE); //e.g Feb-May
+        private final static Pattern PATTERN_EXACT = Pattern.compile("^(\\d+)$"); //e.g 23
+        private final static Pattern PATTERN_EXACT_NAME = Pattern
+                .compile("^([A-Z]+)$", Pattern.CASE_INSENSITIVE); //e.g Monday
 
         /**
          * Used to test second, minute, and hour parts.
@@ -102,8 +97,8 @@ public class CronFormat {
                     boolean matches = false;
                     String v = mExact.group(1);
                     for (String acceptedValue : acceptedValues) {
-                        if (StringUtils.equalsAnyIgnoreCase(v, acceptedValues) || (v.length() == 3
-                                && StringUtils.startsWithIgnoreCase(acceptedValue, v))) {
+                        if (StringUtils.equalsAnyIgnoreCase(v, acceptedValues) || (v.length() == 3 && StringUtils
+                                .startsWithIgnoreCase(acceptedValue, v))) {
                             matches = true;
                             break;
                         }
@@ -121,12 +116,10 @@ public class CronFormat {
                     String vHigh = mRange.group(2);
                     boolean matchLow = false, matchHigh = false;
                     for (String acceptedValue : acceptedValues) {
-                        matchLow |= StringUtils.equalsAnyIgnoreCase(vLow, acceptedValues)
-                                || (vLow.length() == 3
-                                        && StringUtils.startsWithIgnoreCase(acceptedValue, vLow));
-                        matchHigh |= StringUtils.equalsAnyIgnoreCase(vHigh, acceptedValues)
-                                || (vHigh.length() == 3
-                                        && StringUtils.startsWithIgnoreCase(acceptedValue, vHigh));
+                        matchLow |= StringUtils.equalsAnyIgnoreCase(vLow, acceptedValues) || (vLow.length() == 3
+                                && StringUtils.startsWithIgnoreCase(acceptedValue, vLow));
+                        matchHigh |= StringUtils.equalsAnyIgnoreCase(vHigh, acceptedValues) || (vHigh.length() == 3
+                                && StringUtils.startsWithIgnoreCase(acceptedValue, vHigh));
                         if (matchLow && matchHigh) {
                             break;
                         }
@@ -180,12 +173,6 @@ public class CronFormat {
 
         protected static boolean matches(String[] tokens, String value, String[] values) {
             int index = ArrayUtils.indexOf(values, value);
-            // for (int i = 0; i < values.length; i++) {
-            // if (StringUtils.equalsIgnoreCase(value, values[i])) {
-            // index = i;
-            // break;
-            // }
-            // }
             for (String token : tokens) {
                 if (StringUtils.equals(token, "*")) {
                     return true;
@@ -194,8 +181,8 @@ public class CronFormat {
                 Matcher mExact = PATTERN_EXACT_NAME.matcher(token);
                 if (mExact.matches()) {
                     String v = mExact.group(1);
-                    if (StringUtils.equalsAnyIgnoreCase(v, value)
-                            || (v.length() == 3 && StringUtils.startsWithIgnoreCase(value, v))) {
+                    if (StringUtils.equalsAnyIgnoreCase(v, value) || (v.length() == 3 && StringUtils
+                            .startsWithIgnoreCase(value, v))) {
                         return true;
                     }
                     continue;
@@ -207,13 +194,12 @@ public class CronFormat {
                     String vHigh = mRange.group(2);
                     int min = -1, max = -1;
                     for (int i = 0; i < values.length; i++) {
-                        if (StringUtils.equalsAnyIgnoreCase(vLow, values[i]) || (vLow.length() == 3
-                                && StringUtils.startsWithIgnoreCase(values[i], vLow))) {
+                        if (StringUtils.equalsAnyIgnoreCase(vLow, values[i]) || (vLow.length() == 3 && StringUtils
+                                .startsWithIgnoreCase(values[i], vLow))) {
                             min = i;
                         }
-                        if (StringUtils.equalsAnyIgnoreCase(vHigh, values[i])
-                                || (vHigh.length() == 3
-                                        && StringUtils.startsWithIgnoreCase(values[i], vHigh))) {
+                        if (StringUtils.equalsAnyIgnoreCase(vHigh, values[i]) || (vHigh.length() == 3 && StringUtils
+                                .startsWithIgnoreCase(values[i], vHigh))) {
                             max = i;
                         }
                     }
@@ -228,22 +214,21 @@ public class CronFormat {
 
         /**
          * Create a new schedule part with default schedule value.
-         * 
+         *
          * @param clazz
          * @return
          */
         public static <T extends SchedulePart> T newInstance(Class<T> clazz) {
             try {
-                return clazz.newInstance();
+                return clazz.getDeclaredConstructor().newInstance();
             } catch (Exception e) {
-                throw e instanceof RuntimeException ? (RuntimeException) e
-                        : new RuntimeException(e);
+                throw e instanceof RuntimeException ? (RuntimeException) e : new RuntimeException(e);
             }
         }
 
         /**
          * Create a new schedule part with specified schedule value.
-         * 
+         *
          * @param schedule
          * @param clazz
          * @return
@@ -283,7 +268,7 @@ public class CronFormat {
 
         /**
          * Schedule to run at Nth cycle.
-         * 
+         *
          * @param n
          * @return
          */
@@ -385,8 +370,8 @@ public class CronFormat {
          */
         @Override
         public boolean matches(int value) {
-            return isValidValue(value) && (matches(tokens, value)
-                    || matches(tokens, MONTH_LIST[value - 1], MONTH_LIST));
+            return isValidValue(value) && (matches(tokens, value) || matches(tokens, MONTH_LIST[value - 1],
+                    MONTH_LIST));
         }
     }
 
@@ -408,18 +393,16 @@ public class CronFormat {
          */
         @Override
         public boolean matches(int value) {
-            return isValidValue(value)
-                    && (matches(tokens, value) || matches(tokens, DOW_LIST[value - 1], DOW_LIST));
+            return isValidValue(value) && (matches(tokens, value) || matches(tokens, DOW_LIST[value - 1], DOW_LIST));
         }
     }
 
     /**
      * Parses a cron format from a plain text string.
-     * 
-     * @param input
-     *            either short format {@code <Second> <Minute> <Hour>} or full
-     *            format
-     *            {@code <Second> <Minute> <Hour> <Day_Of_Month> <Month> <Day_Of_Week>}
+     *
+     * @param input either short format {@code <Second> <Minute> <Hour>} or full
+     *              format
+     *              {@code <Second> <Minute> <Hour> <Day_Of_Month> <Month> <Day_Of_Week>}
      * @return
      */
     public static CronFormat parse(String input) {
@@ -436,14 +419,12 @@ public class CronFormat {
         return null;
     }
 
-    public final static int SUNDAY = 1, MONDAY = 2, TUESDAY = 3, WEDNESDAY = 4, THURSDAY = 5,
-            FRIDAY = 6, SATURDAY = 7;
-    public final static int JANUARY = 1, FEBRUARY = 2, MARCH = 3, APRIL = 4, MAY = 5, JUNE = 6,
-            JULY = 7, AUGUST = 8, SEPTEMBER = 9, OCTOBER = 10, NOVEMBER = 11, DECEMBER = 12;
-    private final static String[] DOW_LIST = { "SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY",
-            "THURSDAY", "FRIDAY", "SATURDAY" };
-    private final static String[] MONTH_LIST = { "JANUARY", "FEBRUARY ", "MARCH", "APRIL", "MAY",
-            "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER" };
+    public final static int SUNDAY = 1, MONDAY = 2, TUESDAY = 3, WEDNESDAY = 4, THURSDAY = 5, FRIDAY = 6, SATURDAY = 7;
+    public final static int JANUARY = 1, FEBRUARY = 2, MARCH = 3, APRIL = 4, MAY = 5, JUNE = 6, JULY = 7, AUGUST = 8, SEPTEMBER = 9, OCTOBER = 10, NOVEMBER = 11, DECEMBER = 12;
+    private final static String[] DOW_LIST = { "SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY",
+            "SATURDAY" };
+    private final static String[] MONTH_LIST = { "JANUARY", "FEBRUARY ", "MARCH", "APRIL", "MAY", "JUNE", "JULY",
+            "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER" };
 
     private Second second = SchedulePart.newInstance(Second.class);
     private Minute minute = SchedulePart.newInstance(Minute.class);
@@ -461,8 +442,7 @@ public class CronFormat {
         setHour(hour);
     }
 
-    public CronFormat(String second, String minute, String hour, String dayOfMonth, String month,
-            String dayOfWeek) {
+    public CronFormat(String second, String minute, String hour, String dayOfMonth, String month, String dayOfWeek) {
         setSecond(second);
         setMinute(minute);
         setHour(hour);
@@ -473,7 +453,7 @@ public class CronFormat {
 
     /**
      * Matches this cron format against a timestamp.
-     * 
+     *
      * @param timestampMillis
      * @return
      */
@@ -485,7 +465,7 @@ public class CronFormat {
 
     /**
      * Matches this cron format against a timestamp.
-     * 
+     *
      * @param timestamp
      * @return
      */
@@ -497,7 +477,7 @@ public class CronFormat {
 
     /**
      * Matches this cron format against a timestamp.
-     * 
+     *
      * @param timestamp
      * @return
      */
@@ -555,13 +535,13 @@ public class CronFormat {
     }
 
     /*----------------------------------------------------------------------*/
+
     /**
      * {@inheritDoc}
      */
     @Override
     public String toString() {
-        return second + " " + minute + " " + hour + " " + dayOfMonth + " " + month + " "
-                + dayOfWeek;
+        return second + " " + minute + " " + hour + " " + dayOfMonth + " " + month + " " + dayOfWeek;
     }
 
     public CronFormat everyNMonths(int n) {
@@ -575,9 +555,8 @@ public class CronFormat {
 
     /**
      * Helper method to set "second" pattern.
-     * 
-     * @param second
-     *            value in range {@code [0,59]}
+     *
+     * @param second value in range {@code [0,59]}
      * @return
      */
     public CronFormat at(int second) {
@@ -587,11 +566,9 @@ public class CronFormat {
 
     /**
      * Helper method to set "minute" and "second" parts.
-     * 
-     * @param minute
-     *            value in range {@code [0,59]}
-     * @param second
-     *            value in range {@code [0,59]}
+     *
+     * @param minute value in range {@code [0,59]}
+     * @param second value in range {@code [0,59]}
      * @return
      */
     public CronFormat at(int minute, int second) {
@@ -602,13 +579,10 @@ public class CronFormat {
 
     /**
      * Helper method to set "hour", "minute" and "second" parts.
-     * 
-     * @param hour
-     *            value in range {@code [0,23]}
-     * @param minute
-     *            value in range {@code [0,59]}
-     * @param second
-     *            value in range {@code [0,59]}
+     *
+     * @param hour   value in range {@code [0,23]}
+     * @param minute value in range {@code [0,59]}
+     * @param second value in range {@code [0,59]}
      * @return
      */
     public CronFormat at(int hour, int minute, int second) {

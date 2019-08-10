@@ -25,7 +25,7 @@ public enum MessageHandlerMatchingType {
 
     private int value;
 
-    private MessageHandlerMatchingType(int value) {
+    MessageHandlerMatchingType(int value) {
         this.value = value;
     }
 

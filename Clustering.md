@@ -19,13 +19,13 @@ This library provides handy utility and helper classes to work with [Akka cluste
 - Package `com.github.ddth.akka.cluster.serialization`:
   - `DdthAkkaSerializer`: An out-of-the-box serializer for actor system in network/cluster mode.
 
-### Usecase: Keep track of cluster nodes
+### Use-case: Keep track of cluster nodes
 
 - Create one instance of `com.github.ddth.akka.cluster.MasterActor` per ActorSystem.
 - `MasterActor` listens to cluster events and keeps track of cluster member nodes' up/down/join/leave status.
 - Helper methods in `com.github.ddth.akka.cluster.ClusterMemberUtils` can be used to get status cluster member nodes:
 
-### Usecase: Scheduling jobs in cluster mode
+### Use-case: Scheduling jobs in cluster mode
 
 - Create one instance of `com.github.ddth.akka.cluster.scheduling.ClusterTickFanOutActor` per ActorSystem.
 - Create workers: it is recommended to implement cluster workers by extending `BaseClusterWorker`.
