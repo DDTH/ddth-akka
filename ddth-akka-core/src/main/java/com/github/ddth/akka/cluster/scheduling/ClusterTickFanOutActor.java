@@ -30,7 +30,7 @@ import org.slf4j.LoggerFactory;
  * @since 0.1.3
  */
 public class ClusterTickFanOutActor extends TickFanOutActor {
-    public final static String ACTOR_NAME = AkkaUtils.shortenClassName(ClusterTickFanOutActor.class);
+    public final static String ACTOR_NAME = ClusterTickFanOutActor.class.getSimpleName();
     public final static Props PROPS = Props.create(ClusterTickFanOutActor.class);
 
     /**
