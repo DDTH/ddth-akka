@@ -5,7 +5,6 @@ import akka.actor.ActorSystem;
 import akka.actor.Props;
 import com.github.ddth.akka.scheduling.TickFanOutActor;
 import com.github.ddth.akka.scheduling.TickMessage;
-import com.github.ddth.akka.utils.AkkaUtils;
 import com.github.ddth.dlock.IDLock;
 import com.github.ddth.dlock.LockResult;
 import com.github.ddth.pubsub.IPubSubHub;
@@ -41,7 +40,7 @@ public class MultiNodePubSubBasedTickFanOutActor extends TickFanOutActor {
     public final static long DEFAULT_DLOCK_TIME_MS = 5000;
 
     private final Logger LOGGER = LoggerFactory.getLogger(MultiNodePubSubBasedTickFanOutActor.class);
-    public final static String ACTOR_NAME = AkkaUtils.shortenClassName(MultiNodePubSubBasedTickFanOutActor.class);
+    public final static String ACTOR_NAME = MultiNodePubSubBasedTickFanOutActor.class.getSimpleName();
 
     /**
      * Helper method to create an instance of

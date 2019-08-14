@@ -6,6 +6,7 @@ import akka.actor.Props;
 import com.github.ddth.akka.AkkaUtils;
 import com.github.ddth.akka.scheduling.BaseWorker;
 import com.github.ddth.akka.scheduling.CronFormat;
+import com.github.ddth.akka.scheduling.TickFanOutActor;
 import com.github.ddth.akka.scheduling.TickMessage;
 import com.github.ddth.akka.scheduling.annotation.Scheduling;
 import com.github.ddth.akka.scheduling.tickfanout.SingleNodeTickFanOutActor;
@@ -22,19 +23,30 @@ public class QndSingleNodeTickFanOut {
         System.setProperty("org.slf4j.simpleLogger.showShortLogName", "false");
     }
 
+    private final static String DF = "HH:mm:ss.SSS";
+
     @Scheduling("*/5 * *")
     private static class MyWorker1 extends BaseWorker {
+        public MyWorker1() {
+            setHandleMessageAsync(true);
+        }
+
         @Override
         protected void doJob(String lockId, TickMessage tick) {
             Date now = new Date();
-            System.out.println("{" + self().path() + "}: Tick " + tick.getId() + " / Now " + DateFormatUtils
-                    .toString(now, DateFormatUtils.DF_ISO8601) + " / TickTime " + DateFormatUtils
-                    .toString(tick.getTimestamp(), DateFormatUtils.DF_ISO8601) + " / Lag " + (now.getTime() - tick
-                    .getTimestamp().getTime()));
+            System.out.println(
+                    "{" + self().path().name() + "}: Tick {" + tick.getId() + "} from {" + sender().path().name()
+                            + " : " + tick.getTag(TickFanOutActor.TAG_SENDDER_ADDR) + "} / Now " + DateFormatUtils
+                            .toString(now, DF) + " / TickTime " + DateFormatUtils.toString(tick.getTimestamp(), DF)
+                            + " / Lag " + (now.getTime() - tick.getTimestamp().getTime()));
         }
     }
 
     private static class MyWorker2 extends BaseWorker {
+        public MyWorker2() {
+            setHandleMessageAsync(false);
+        }
+
         @Override
         protected CronFormat getScheduling() {
             return CronFormat.parse("*/7 * *");
@@ -43,10 +55,11 @@ public class QndSingleNodeTickFanOut {
         @Override
         protected void doJob(String lockId, TickMessage tick) {
             Date now = new Date();
-            System.out.println("{" + self().path() + "}: Tick " + tick.getId() + " / Now " + DateFormatUtils
-                    .toString(now, DateFormatUtils.DF_ISO8601) + " / TickTime " + DateFormatUtils
-                    .toString(tick.getTimestamp(), DateFormatUtils.DF_ISO8601) + " / Lag " + (now.getTime() - tick
-                    .getTimestamp().getTime()));
+            System.out.println(
+                    "{" + self().path().name() + "}: Tick {" + tick.getId() + "} from {" + sender().path().name()
+                            + " : " + tick.getTag(TickFanOutActor.TAG_SENDDER_ADDR) + "} / Now " + DateFormatUtils
+                            .toString(now, DF) + " / TickTime " + DateFormatUtils.toString(tick.getTimestamp(), DF)
+                            + " / Lag " + (now.getTime() - tick.getTimestamp().getTime()));
         }
     }
 

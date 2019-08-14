@@ -57,26 +57,5 @@ public class QndCreateActorSystem {
 
             system.terminate();
         }
-
-        // {
-        // Config config = TypesafeConfigUtils.loadConfig(
-        // "src/test/java/com/github/ddth/akka/qnd/akka-standalone.conf", true);
-        // ActorSystem system = AkkaUtils.createActorSystem("my-actor-system",
-        // config);
-        // System.out.println(system);
-        // print(system.settings(), "config2.conf");
-        // system.terminate();
-        // }
-        //
-        // {
-        // Config config = TypesafeConfigUtils.loadConfig(
-        // QndCreateActorSystem.class.getClassLoader(),
-        // "com/github/ddth/akka/default-akka-standalone.conf", true);
-        // ActorSystem system = AkkaUtils.createActorSystem("my-actor-system",
-        // config);
-        // System.out.println(system);
-        // print(system.settings(), "config3.conf");
-        // system.terminate();
-        // }
     }
 }

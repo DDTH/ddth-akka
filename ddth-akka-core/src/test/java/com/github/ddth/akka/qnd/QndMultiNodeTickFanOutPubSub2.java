@@ -5,6 +5,7 @@ import akka.actor.ActorSystem;
 import akka.actor.Props;
 import com.github.ddth.akka.AkkaUtils;
 import com.github.ddth.akka.scheduling.BaseWorker;
+import com.github.ddth.akka.scheduling.TickFanOutActor;
 import com.github.ddth.akka.scheduling.TickMessage;
 import com.github.ddth.akka.scheduling.WorkerCoordinationPolicy;
 import com.github.ddth.akka.scheduling.annotation.Scheduling;
@@ -28,6 +29,8 @@ public class QndMultiNodeTickFanOutPubSub2 {
         System.setProperty("org.slf4j.simpleLogger.showShortLogName", "false");
     }
 
+    private final static String DF = "HH:mm:ss.SSS";
+
     static Logger LOGGER = LoggerFactory.getLogger(QndMultiNodeTickFanOutPubSub2.class);
     static Random RAND = new Random(System.currentTimeMillis());
 
@@ -35,6 +38,7 @@ public class QndMultiNodeTickFanOutPubSub2 {
     static class MyWorker1 extends BaseWorker {
         public MyWorker1(IDLock dlock) {
             super(dlock, 5000);
+            setHandleMessageAsync(true);
         }
 
         protected void logBusy(TickMessage tick, boolean isGlobal) {
@@ -43,15 +47,19 @@ public class QndMultiNodeTickFanOutPubSub2 {
 
         @Override
         protected void doJob(String lockId, TickMessage tick) throws Exception {
-            Date now = new Date();
-            LOGGER.info("{" + self().path() + "}: Tick " + tick.getId() + " / Now " + DateFormatUtils
-                    .toString(now, DateFormatUtils.DF_ISO8601) + " / TickTime " + DateFormatUtils
-                    .toString(tick.getTimestamp(), DateFormatUtils.DF_ISO8601) + " / Lag " + (now.getTime() - tick
-                    .getTimestamp().getTime()));
-            long sleepTime = 2300 + RAND.nextInt(1000);
-            LOGGER.info("\t{" + self().path() + "} sleeping for " + sleepTime);
-            Thread.sleep(sleepTime);
-            unlock(lockId);
+            try {
+                Date now = new Date();
+                System.out.println(
+                        "{" + self().path().name() + "}: Tick {" + tick.getId() + "} from {" + sender().path().name()
+                                + " : " + tick.getTag(TickFanOutActor.TAG_SENDDER_ADDR) + "} / Now " + DateFormatUtils
+                                .toString(now, DF) + " / TickTime " + DateFormatUtils.toString(tick.getTimestamp(), DF)
+                                + " / Lag " + (now.getTime() - tick.getTimestamp().getTime()));
+                long sleepTime = 2300 + RAND.nextInt(1000);
+                LOGGER.info("\t{" + self().path() + "} sleeping for " + sleepTime);
+                Thread.sleep(sleepTime);
+            } finally {
+                unlock(lockId);
+            }
         }
     }
 
@@ -59,6 +67,7 @@ public class QndMultiNodeTickFanOutPubSub2 {
     static class MyWorker2 extends BaseWorker {
         public MyWorker2(IDLock dlock) {
             super(dlock, 5000);
+            setHandleMessageAsync(false);
         }
 
         protected void logBusy(TickMessage tick, boolean isGlobal) {
@@ -67,15 +76,19 @@ public class QndMultiNodeTickFanOutPubSub2 {
 
         @Override
         protected void doJob(String lockId, TickMessage tick) throws Exception {
-            Date now = new Date();
-            LOGGER.info("{" + self().path() + "}: Tick " + tick.getId() + " / Now " + DateFormatUtils
-                    .toString(now, DateFormatUtils.DF_ISO8601) + " / TickTime " + DateFormatUtils
-                    .toString(tick.getTimestamp(), DateFormatUtils.DF_ISO8601) + " / Lag " + (now.getTime() - tick
-                    .getTimestamp().getTime()));
-            long sleepTime = 2500 + RAND.nextInt(1000);
-            LOGGER.info("\t{" + self().path() + "} sleeping for " + sleepTime);
-            Thread.sleep(sleepTime);
-            unlock(lockId);
+            try {
+                Date now = new Date();
+                System.out.println(
+                        "{" + self().path().name() + "}: Tick {" + tick.getId() + "} from {" + sender().path().name()
+                                + " : " + tick.getTag(TickFanOutActor.TAG_SENDDER_ADDR) + "} / Now " + DateFormatUtils
+                                .toString(now, DF) + " / TickTime " + DateFormatUtils.toString(tick.getTimestamp(), DF)
+                                + " / Lag " + (now.getTime() - tick.getTimestamp().getTime()));
+                long sleepTime = 2500 + RAND.nextInt(1000);
+                LOGGER.info("\t{" + self().path() + "} sleeping for " + sleepTime);
+                Thread.sleep(sleepTime);
+            } finally {
+                unlock(lockId);
+            }
         }
     }
 

@@ -39,6 +39,9 @@ import java.util.concurrent.locks.ReentrantLock;
  * </ul>
  * </p>
  *
+ * <p>Please note that the sender of tick-message cannot be obtained via {@link #sender()}.
+ * Get the sender's actor path via {@code tickMessage.getTag(TickFanOutActor.TAG_SENDDER_ADDR, String.class)}</p>
+ *
  * @author Thanh Nguyen <btnguyen2k@gmail.com>
  * @since 0.1.0
  */

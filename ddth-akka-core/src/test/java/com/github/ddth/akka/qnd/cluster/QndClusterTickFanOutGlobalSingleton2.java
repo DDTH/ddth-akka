@@ -4,6 +4,7 @@ import akka.actor.ActorSystem;
 import com.github.ddth.akka.cluster.MasterActor;
 import com.github.ddth.akka.cluster.scheduling.BaseClusterWorker;
 import com.github.ddth.akka.cluster.scheduling.ClusterTickFanOutActor;
+import com.github.ddth.akka.scheduling.TickFanOutActor;
 import com.github.ddth.akka.scheduling.TickMessage;
 import com.github.ddth.akka.scheduling.WorkerCoordinationPolicy;
 import com.github.ddth.akka.scheduling.annotation.Scheduling;
@@ -20,11 +21,28 @@ import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class QndClusterTickFanOutGlobalSingleton2 extends BaseQnd {
+    static {
+        System.setProperty("org.slf4j.simpleLogger.logFile", "System.out");
+        System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "debug");
+        System.setProperty("org.slf4j.simpleLogger.showThreadName", "false");
+        System.setProperty("org.slf4j.simpleLogger.showLogName", "false");
+        System.setProperty("org.slf4j.simpleLogger.showShortLogName", "false");
+    }
+
+    private final static String DF = "HH:mm:ss.SSS";
+
     private static Logger LOGGER = LoggerFactory.getLogger(QndClusterTickFanOutGlobalSingleton2.class);
     private static Random RAND = new Random(System.currentTimeMillis());
 
     @Scheduling(value = "*/3 * *", workerCoordinationPolicy = WorkerCoordinationPolicy.GLOBAL_SINGLETON, lockTime = 10000)
     static class MyWorker extends BaseClusterWorker {
+        static int counter = 0;
+
+        public MyWorker() {
+            setHandleMessageAsync(counter % 2 == 0);
+            counter++;
+        }
+
         private static AtomicLong lastTimestamp = new AtomicLong();
         private static AtomicLong lastSleep = new AtomicLong();
 
@@ -46,27 +64,28 @@ public class QndClusterTickFanOutGlobalSingleton2 extends BaseQnd {
         @Override
         protected void logBusy(TickMessage tick, boolean isGlobal) {
             if (isGlobal) {
-                String id = getCluster().selfMember().address() + ":" + self().path().name();
-                LOGGER.warn("\t{" + id + "} Received TICK message, but another instance is taking the task. " + tick
-                        .getTimestampStr("HH:mm:ss") + " / " + sender().path());
+                String myId = getCluster().selfMember().address() + "/" + self().path().name();
+                LOGGER.warn("\t{" + myId + "} Received TICK message, but another instance is taking the task. " + tick
+                        .getTimestampStr(DF) + " / " + sender().path());
             } else {
                 LOGGER.warn("\t{" + getActorPath().name() + "} Received TICK message, but I am busy! " + tick
-                        .getTimestampStr("HH:mm:ss") + " / " + sender().path());
+                        .getTimestampStr(DF) + " / " + sender().path());
             }
         }
 
         @Override
         protected void doJob(String lockId, TickMessage tick) throws Exception {
-            final String DF = "HH:mm:ss.SSS";
             Date now = new Date();
             long lastT = lastTimestamp.getAndSet(now.getTime());
             long lastS = lastSleep.get();
             long t = tick.getTimestamp().getTime();
             try {
-                String id = getCluster().selfMember().address() + ":" + self().path().name();
-                LOGGER.info("{" + id + "}: " + tick.getId() + " / " + DateFormatUtils.toString(now, DF) + " / "
-                        + DateFormatUtils.toString(tick.getTimestamp(), DF) + " / " + (now.getTime() - tick
-                        .getTimestamp().getTime()) + " / " + (lastT + lastS < t));
+                String myId = getCluster().selfMember().address() + "/" + self().path().name();
+                String senderId = sender().path().address() + "/" + sender().path().name();
+                System.out.println("{" + myId + "}: Tick {" + tick.getId() + "} from {" + senderId + " : " + tick
+                        .getTag(TickFanOutActor.TAG_SENDDER_ADDR) + "} / Now " + DateFormatUtils.toString(now, DF)
+                        + " / TickTime " + DateFormatUtils.toString(tick.getTimestamp(), DF) + " / Lag " + (
+                        now.getTime() - tick.getTimestamp().getTime()) + " / " + (lastT + lastS < t));
                 long sleepTime = 2300 + RAND.nextInt(1000);
                 LOGGER.info("\t{" + getActorPath().name() + "} sleeping for " + sleepTime);
                 lastSleep.set(sleepTime);

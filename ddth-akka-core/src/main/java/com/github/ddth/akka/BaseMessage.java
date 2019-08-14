@@ -2,6 +2,7 @@ package com.github.ddth.akka;
 
 import com.github.ddth.akka.utils.AkkaUtils;
 import com.github.ddth.commons.utils.DateFormatUtils;
+import com.github.ddth.commons.utils.MapUtils;
 import com.github.ddth.commons.utils.SerializationUtils;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
@@ -10,6 +11,7 @@ import java.io.Serializable;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Base class to implement Akka's messages.
@@ -100,9 +102,88 @@ public class BaseMessage implements Serializable {
         return DateFormatUtils.toString(getTimestamp(), format);
     }
 
+    /**
+     * Alias of {@link #setTag(String, Object).}
+     *
+     * @param name
+     * @param value
+     * @return
+     */
     public BaseMessage addTag(String name, Object value) {
+        return setTag(name, value);
+    }
+
+    /**
+     * Attach a tag & value.
+     *
+     * @param name
+     * @param value
+     * @return
+     * @since 1.0.1
+     */
+    public BaseMessage setTag(String name, Object value) {
         tags.put(name, value);
         return this;
+    }
+
+    /**
+     * Get an attached tag value.
+     *
+     * @param name
+     * @return
+     * @since 1.0.1
+     */
+    public Object getTag(String name) {
+        return tags.get(name);
+    }
+
+    /**
+     * Get an attached tag value.
+     *
+     * @param name
+     * @return
+     * @since 1.0.1
+     */
+    public Optional<Object> getTagOptional(String name) {
+        return Optional.ofNullable(getTag(name));
+    }
+
+    /**
+     * Get an attached tag value.
+     *
+     * @param name
+     * @param clazz
+     * @param <T>
+     * @return
+     * @since 1.0.1
+     */
+    public <T> T getTag(String name, Class<T> clazz) {
+        return MapUtils.getValue(tags, name, clazz);
+    }
+
+    /**
+     * Get an attached tag value.
+     *
+     * @param name
+     * @param clazz
+     * @param <T>
+     * @return
+     * @since 1.0.1
+     */
+    public <T> Optional<T> getTagOptional(String name, Class<T> clazz) {
+        return Optional.ofNullable(getTag(name, clazz));
+    }
+
+    /**
+     * Get an attached tag value as date. If the attached value is a string, parse it as a {@link Date} using the specified date-time format.
+     *
+     * @param name
+     * @param df   datetime format string
+     * @return
+     * @since 1.0.1
+     */
+    public Date getTagAsDate(String name, String df) {
+        return MapUtils.getDate(tags, name, df);
     }
 
     /**

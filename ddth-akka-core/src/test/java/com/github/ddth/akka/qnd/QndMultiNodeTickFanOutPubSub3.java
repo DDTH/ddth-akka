@@ -31,6 +31,8 @@ public class QndMultiNodeTickFanOutPubSub3 {
         System.setProperty("org.slf4j.simpleLogger.showShortLogName", "false");
     }
 
+    private final static String DF = "HH:mm:ss.SSS";
+
     static Logger LOGGER = LoggerFactory.getLogger(QndMultiNodeTickFanOutPubSub3.class);
     static Random RAND = new Random(System.currentTimeMillis());
     static int NUM_WORKERS = 4;
@@ -40,12 +42,12 @@ public class QndMultiNodeTickFanOutPubSub3 {
 
     @Scheduling(value = "*/5 * *", workerCoordinationPolicy = WorkerCoordinationPolicy.GLOBAL_SINGLETON)
     public static class GlobalSingletonWorker extends BaseWorker {
-
         private int workerId;
 
         public GlobalSingletonWorker(IDLock dlock, int workerId) {
             super(dlock);
             this.workerId = workerId;
+            setHandleMessageAsync(workerId % 2 == 0);
         }
 
         /**
@@ -71,7 +73,7 @@ public class QndMultiNodeTickFanOutPubSub3 {
                     rate.set(i, Math.round(d * 10.0) / 10.0);
                 }
 
-                LOGGER.info(self().path().name() + ": " + tick.getTimestampStr("HH:mm:ss") + (valid ? " [Y]" : " [N]")
+                LOGGER.info(self().path().name() + ": " + tick.getTimestampStr(DF) + (valid ? " [Y]" : " [N]")
                         + " / Delay: " + (now.getTime() - tick.getTimestamp().getTime()) + "ms / Counter: "
                         + COUNTER_HIT + " / Rate: " + rate);
 

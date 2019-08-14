@@ -82,8 +82,6 @@ public class QndCluster1 extends BaseQnd {
         protected void doJob(String lockId, TickMessage tick) throws Exception {
             Date now = new Date();
             try {
-                // LOGGER.debug("\t{" + getActorPath().name() + "}: " +
-                // getReplicator());
                 DDGetResult result = ddGet("key");
                 LOGGER.warn("\t{" + getActorPath().name() + "} get: " + result);
             } finally {

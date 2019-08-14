@@ -4,6 +4,7 @@ import akka.actor.ActorSystem;
 import com.github.ddth.akka.cluster.MasterActor;
 import com.github.ddth.akka.cluster.scheduling.BaseClusterWorker;
 import com.github.ddth.akka.cluster.scheduling.ClusterTickFanOutActor;
+import com.github.ddth.akka.scheduling.TickFanOutActor;
 import com.github.ddth.akka.scheduling.TickMessage;
 import com.github.ddth.akka.scheduling.WorkerCoordinationPolicy;
 import com.github.ddth.akka.scheduling.annotation.Scheduling;
@@ -19,6 +20,16 @@ import java.util.Date;
 import java.util.Random;
 
 public class QndClusterTickFanOutGlobalSingleton extends BaseQnd {
+    static {
+        System.setProperty("org.slf4j.simpleLogger.logFile", "System.out");
+        System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "debug");
+        System.setProperty("org.slf4j.simpleLogger.showThreadName", "false");
+        System.setProperty("org.slf4j.simpleLogger.showLogName", "false");
+        System.setProperty("org.slf4j.simpleLogger.showShortLogName", "false");
+    }
+
+    private final static String DF = "HH:mm:ss.SSS";
+
     private static Logger LOGGER = LoggerFactory.getLogger(QndClusterTickFanOutGlobalSingleton.class);
     private static Random RAND = new Random(System.currentTimeMillis());
 
@@ -53,10 +64,11 @@ public class QndClusterTickFanOutGlobalSingleton extends BaseQnd {
         protected void doJob(String lockId, TickMessage tick) throws Exception {
             Date now = new Date();
             try {
-                LOGGER.info("{" + self().path().name() + "}: " + tick.getId() + " / " + DateFormatUtils
-                        .toString(now, DateFormatUtils.DF_ISO8601) + " / " + DateFormatUtils
-                        .toString(tick.getTimestamp(), DateFormatUtils.DF_ISO8601) + " / " + (now.getTime() - tick
-                        .getTimestamp().getTime()));
+                System.out.println(
+                        "{" + self().path().name() + "}: Tick {" + tick.getId() + "} from {" + sender().path().name()
+                                + " : " + tick.getTag(TickFanOutActor.TAG_SENDDER_ADDR) + "} / Now " + DateFormatUtils
+                                .toString(now, DF) + " / TickTime " + DateFormatUtils.toString(tick.getTimestamp(), DF)
+                                + " / Lag " + (now.getTime() - tick.getTimestamp().getTime()));
                 long sleepTime = 2300 + RAND.nextInt(1000);
                 LOGGER.info("\t{" + getActorPath().name() + "} sleeping for " + sleepTime);
                 Thread.sleep(sleepTime);

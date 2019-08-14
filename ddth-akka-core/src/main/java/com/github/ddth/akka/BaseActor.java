@@ -140,7 +140,7 @@ public class BaseActor extends UntypedAbstractActor {
         // subscribe to message channels
         Collection<Class<?>> msgChannels = channelSubscriptions();
         if (msgChannels != null && msgChannels.size() > 0) {
-            msgChannels.forEach((clazz) -> getContext().system().eventStream().subscribe(self(), clazz));
+            msgChannels.forEach(clazz -> getContext().system().eventStream().subscribe(self(), clazz));
         }
     }
 

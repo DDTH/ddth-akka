@@ -5,7 +5,6 @@ import akka.actor.ActorSystem;
 import akka.actor.Props;
 import com.github.ddth.akka.scheduling.TickFanOutActor;
 import com.github.ddth.akka.scheduling.TickMessage;
-import com.github.ddth.akka.utils.AkkaUtils;
 
 /**
  * Tick fan-out actor that broadcasts "tick" messages to local workers, used in
@@ -15,7 +14,7 @@ import com.github.ddth.akka.utils.AkkaUtils;
  * @since 0.1.0
  */
 public class SingleNodeTickFanOutActor extends TickFanOutActor {
-    public final static String ACTOR_NAME = AkkaUtils.shortenClassName(SingleNodeTickFanOutActor.class);
+    public final static String ACTOR_NAME = SingleNodeTickFanOutActor.class.getSimpleName();
     public final static Props PROPS = Props.create(SingleNodeTickFanOutActor.class);
 
     /**

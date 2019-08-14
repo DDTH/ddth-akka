@@ -1,5 +1,13 @@
 # ddth-akka release notes
 
+## 1.0.1 - 2019-08-13
+
+Fixes and Enhancements:
+- `TickFanOutActor`: `void renewClock()` is now correctly called to renew clock per 24 hours.
+- Update document on behavior of `setHandleMessageAsync(boolean)` for workers and cluster-workers.
+- Sender of tick-message is tagged along the message at key `TickFanOutActor.TAG_SENDDER_ADDR`.
+
+
 ## 1.0.0 - 2019-08-09
 
 - Migrate to `Java 11`.

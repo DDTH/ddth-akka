@@ -42,6 +42,9 @@ import java.util.concurrent.locks.ReentrantLock;
  * </ul>
  * </p>
  *
+ * <p>Please note that if {@link #isHandleMessageAsync()} is {@code true}, the sender of tick-message cannot be obtained via {@link #sender()}.
+ * However, the sender's actor path can always be obtained via {@code tickMessage.getTag(TickFanOutActor.TAG_SENDDER_ADDR, String.class)}</p>
+ *
  * @author Thanh Nguyen <btnguyen2k@gmail.com>
  * @since 0.1.3
  */
