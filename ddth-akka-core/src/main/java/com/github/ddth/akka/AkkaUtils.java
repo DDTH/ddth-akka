@@ -108,7 +108,10 @@ public class AkkaUtils {
                     if (msg instanceof ActorIdentity) {
                         ActorIdentity ai = (ActorIdentity) msg;
                         if (StringUtils.equals(id, ai.correlationId().toString())) {
-                            result.add(ai.getRef());
+                            ActorRef ref = ai.getActorRef().orElse(null);
+                            if (ref != null) {
+                                result.add(ref);
+                            }
                         }
                     }
                 } catch (TimeoutException e) {

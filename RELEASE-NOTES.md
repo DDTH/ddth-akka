@@ -1,6 +1,6 @@
 # ddth-akka release notes
 
-## 1.1.0 - 2019-08-15
+## 1.1.0.1 - 2019-08-15
 
 - `AkkaUtils`:
   - New method `Object simpleAsk(ActorSystem, ActorRef, Object, Duration)` implementing simple ask-response pattern.
