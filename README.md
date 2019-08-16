@@ -10,7 +10,7 @@ Project home: [https://github.com/DDTH/ddth-akka](https://github.com/DDTH/ddth-a
 
 ## Installation
 
-Latest release version: `1.0.1`. See [RELEASE-NOTES.md](RELEASE-NOTES.md).
+Latest release version: `1.1.0`. See [RELEASE-NOTES.md](RELEASE-NOTES.md).
 
 Maven dependency: if only a sub-set of `ddth-akka` functionality is used, choose the corresponding
 dependency artifact(s) to reduce the number of unused jar files.
@@ -21,7 +21,7 @@ dependency artifact(s) to reduce the number of unused jar files.
 <dependency>
     <groupId>com.github.ddth</groupId>
     <artifactId>ddth-akka-core</artifactId>
-    <version>1.0.1</version>
+    <version>1.1.0</version>
 </dependency>
 ```
 

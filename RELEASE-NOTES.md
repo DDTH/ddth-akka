@@ -1,5 +1,12 @@
 # ddth-akka release notes
 
+## 1.1.0 - 2019-08-15
+
+- `AkkaUtils`:
+  - New method `Object simpleAsk(ActorSystem, ActorRef, Object, Duration)` implementing simple ask-response pattern.
+  - New methods `Collection<ActorRef> selectActors(ActorSystem, String, Duration)` and `Collection<ActorRef> selectActors(ActorSystem, ActorPath, Duration)` to find actor-refs using selection path.
+
+
 ## 1.0.1 - 2019-08-13
 
 Fixes and Enhancements:
